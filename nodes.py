@@ -70,7 +70,7 @@ class JevInterpret(io.ComfyNode):
     def define_schema(cls):
         return io.Schema(
             node_id="JevInterpret", display_name="Jev Interpret", category="Jev",
-            description="Send state and independent semantic fields to TypeSafe. Requires TYPESAFE_API_KEY. Reuses ComfyUI's cache; change refresh to request new answers.",
+            description="Send state and independent semantic fields to TypeSafe or OpenRouter. Enter api_key or set TYPESAFE_API_KEY / OPENROUTER_API_KEY. Reuses ComfyUI's cache; change refresh to request new answers.",
             inputs=[
                 io.String.Input("state", multiline=True, default="縦長、動きは控えめ、8秒"),
                 io.Combo.Input("state_format", options=["text", "json"], default="text"),
@@ -82,12 +82,16 @@ class JevInterpret(io.ComfyNode):
                     io.DynamicCombo.Option("custom", [io.String.Input("model_id", default="jev-1.13.0")]),
                 ]),
                 io.Int.Input("refresh", default=0, min=0, control_after_generate=io.ControlAfterGenerate.fixed, tooltip="Keep fixed to reuse results. Increment to request new answers; not an API seed."),
+                io.Combo.Input("provider", options=["typesafe", "openrouter"], default="typesafe", optional=True,
+                               tooltip="OpenRouter uses OPENROUTER_API_KEY and its Decisions API. Latest maps to ~typesafe/jev-latest; custom accepts an exact model ID."),
+                io.String.Input("api_key", default="", optional=True,
+                                tooltip="Key for the selected provider. Empty uses its environment variable. Entered keys are saved in workflows; remove before sharing."),
             ],
             outputs=[JudgmentsType.Output(display_name="judgments"), io.String.Output(display_name="response_json")],
         )
 
     @classmethod
-    async def execute(cls, state, state_format, model, refresh, schemas=None, schema_json=""):
+    async def execute(cls, state, state_format, model, refresh, schemas=None, schema_json="", provider="typesafe", api_key=""):
         if state_format not in ("text", "json"):
             raise ValueError("state_format must be text or json")
         state = s.loads(state, "State") if state_format == "json" else state
@@ -96,7 +100,7 @@ class JevInterpret(io.ComfyNode):
         model_id = model["model_id"] if model["model"] == "custom" else model["model"]
         if not model_id.strip():
             raise ValueError("Model ID cannot be empty")
-        response = await api.evaluate(state, questions, model_id)
+        response = await api.evaluate(state, questions, model_id, provider=provider, api_key=api_key)
         return io.NodeOutput(s.collect_judgments(response, plans), s.dumps(response))
 
 

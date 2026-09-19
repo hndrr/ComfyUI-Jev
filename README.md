@@ -13,9 +13,30 @@ export TYPESAFE_API_KEY="your-key"
 # 同じ環境から、通常の方法でComfyUIを起動
 ```
 
-ランチャーから起動する場合は、そのランチャーの環境変数設定を使います。`.env`は自動読込しません。APIキーはノードやワークフローに保存しません。
+ランチャーから起動する場合は、そのランチャーの環境変数設定を使います。`.env`は自動読込しません。環境変数の代わりに、`Jev Interpret` の `api_key` 欄へ直接入力することもできます。入力欄が空なら、選択したproviderの環境変数を使います。直接入力したキーは平文でワークフローや実行履歴に含まれるため、共有前に削除してください。
 
-`Jev Interpret` の実行時に、入力状態・質問・使用する候補情報をTypeSafe APIへ送信します。モデル一覧ノード自体はローカル処理ですが、接続した候補のファイル名・説明は質問の一部になります。自動モデルダウンロードや起動時の問い合わせはありません。
+`Jev Interpret` の実行時に、入力状態・質問・使用する候補情報を選択したTypeSafe APIまたはOpenRouterへ送信します。モデル一覧ノード自体はローカル処理ですが、接続した候補のファイル名・説明は質問の一部になります。自動モデルダウンロードや起動時の問い合わせはありません。
+
+### OpenRouterを使う場合
+
+`Jev Interpret`の`api_key`欄へOpenRouterのキーを入力するか、ComfyUIを起動する環境で次を設定して再起動します（`.env`の自動読み込みはありません）。
+
+```bash
+export OPENROUTER_API_KEY="your-openrouter-key"
+```
+
+`Jev Interpret` の `provider` を **openrouter** に切り替えてください。TypeSafeのキーは不要です。既存ワークフローでproviderが省略されている場合はtypesafeを使います。
+
+| modelの選択 | OpenRouterへ送信するID |
+| --- | --- |
+| jev-latest | `~typesafe/jev-latest` |
+| jev-1.13.0 | `typesafe/jev-1.13` |
+| custom | model_idに入力したIDをそのまま送信 |
+
+`jev-preview`のOpenRouter用IDは確認できないため、この組み合わせは実行前にエラーになります。
+[OpenRouter Decisions API](https://openrouter.ai/docs/api/api-reference/alphadecisions/submit-a-decisions-questions-and-answers-request)の `https://openrouter.ai/api/alpha/decisions` に、stateとquestionsをまとめて送信します。回答形式は共通で、ResolveやReadノードを変更する必要はありません。応答JSONにはOpenRouterのusage（返された場合はcostも含む）をそのまま保持します。
+
+providerやmodelの変更は再問い合わせの対象です。対応表だけの変更では再問い合わせしません。`api_key`欄の入力が環境変数より優先されます。OpenRouter経由の実API呼び出しは通常テストでは行わず、モックで通信形式を検証します。
 
 ## 最初の使用例
 

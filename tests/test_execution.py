@@ -46,7 +46,7 @@ class ExecutionTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(executor.success, executor.status_messages)
 
     async def test_examples_and_real_cache(self):
-        async def fake(state, questions, model):
+        async def fake(state, questions, model, provider="typesafe", api_key=""):
             return response_for(questions)
         with patch.object(api, "evaluate", side_effect=fake) as transport:
             for name in ("01_brief_to_parameters", "02_asset_matching", "03_compare_concepts", "04_staged_interpretation"):
@@ -64,6 +64,10 @@ class ExecutionTests(unittest.IsolatedAsyncioTestCase):
             graph["5"]["inputs"]["refresh"] = 1
             await self.run_prompt(executor, copy.deepcopy(graph), "refresh")
             self.assertEqual(transport.await_count, 2)
+            graph["5"]["inputs"]["provider"] = "openrouter"
+            await self.run_prompt(executor, copy.deepcopy(graph), "provider-change")
+            self.assertEqual(transport.await_count, 3)
+            self.assertEqual(transport.call_args.kwargs["provider"], "openrouter")
 
     async def test_combo_connection_and_lazy_missing_value(self):
         class ComboSink:
@@ -93,7 +97,7 @@ class ExecutionTests(unittest.IsolatedAsyncioTestCase):
             "8": {"class_type": "ComfySwitchNode", "inputs": {"switch": ["5", 0], "on_true": ["6", 0], "on_false": ["7", 0]}},
             "9": {"class_type": "PreviewAny", "inputs": {"source": ["8", 0]}},
         }
-        async def fake(state, questions, model):
+        async def fake(state, questions, model, provider="typesafe", api_key=""):
             return response_for(questions)
         with patch.object(api, "evaluate", side_effect=fake):
             executor = PromptExecutor(Server(), cache_type=False, cache_args={"ram": 0, "ram_inactive": 0})
