@@ -178,6 +178,73 @@ class TransportTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(call.kwargs["headers"]["Authorization"], "Bearer test-secret")
             self.assertFalse(call.kwargs["allow_redirects"])
 
+    async def test_openrouter_payload_and_judgments(self):
+        schema = {
+            "pick": {"type": "choice", "instructions": "Style?", "criteria": {"soft": None, "hard": None}},
+            "flag": {"type": "boolean", "instructions": "Grain?"},
+            "motion": {"type": "score", "instructions": "Motion?", "criteria": ["Still", "Strong"]},
+            "duration": {"type": "extract", "instructions": "Duration?"},
+        }
+        state = {"brief": "8 seconds"}
+        schema["duration"]["source"] = "/brief"
+        questions, plans = s.compile_questions(state, schema)
+        payload = response_for(questions)
+        payload.update(model="typesafe/jev-1.13", provider="TypeSafe", id="mock-request")
+        payload["usage"]["cost"] = 0.0001
+        response = MagicMock(status=200)
+        response.text = AsyncMock(return_value=json.dumps(payload))
+        response.__aenter__ = AsyncMock(return_value=response)
+        response.__aexit__ = AsyncMock(return_value=False)
+        session = MagicMock()
+        session.post.return_value = response
+        session.__aenter__ = AsyncMock(return_value=session)
+        session.__aexit__ = AsyncMock(return_value=False)
+        with patch.object(api.aiohttp, "ClientSession", return_value=session), patch.dict(
+            os.environ, {"OPENROUTER_API_KEY": "router-secret", "TYPESAFE_API_KEY": "direct-secret"}, clear=True
+        ):
+            output = await n.JevInterpret.execute(
+                json.dumps(state), "json", {"model": "jev-latest"}, 0,
+                schema_json=json.dumps(schema), provider="openrouter", api_key="node-key",
+            )
+        call = session.post.call_args
+        self.assertEqual(call.args[0], "https://openrouter.ai/api/alpha/decisions")
+        self.assertEqual(call.kwargs["json"], {"model": "~typesafe/jev-latest", "state": state, "questions": questions})
+        self.assertEqual(call.kwargs["headers"]["Authorization"], "Bearer node-key")
+        self.assertFalse(call.kwargs["allow_redirects"])
+        self.assertEqual(output.result[0], s.collect_judgments(payload, plans))
+        self.assertEqual(json.loads(output.result[1]), payload)
+
+    async def test_direct_key_precedence_and_blank_fallback(self):
+        response = MagicMock(status=200)
+        response.text = AsyncMock(return_value='{"answers":{}}')
+        response.__aenter__ = AsyncMock(return_value=response)
+        response.__aexit__ = AsyncMock(return_value=False)
+        session = MagicMock()
+        session.post.return_value = response
+        session.__aenter__ = AsyncMock(return_value=session)
+        session.__aexit__ = AsyncMock(return_value=False)
+        with patch.object(api.aiohttp, "ClientSession", return_value=session):
+            for provider, env_name in (("typesafe", "TYPESAFE_API_KEY"), ("openrouter", "OPENROUTER_API_KEY")):
+                for environment in ({}, {env_name: "environment-key"}):
+                    with patch.dict(os.environ, environment, clear=True):
+                        await api.evaluate("state", {"q": {}}, "jev-latest", provider, " direct-key ")
+                        self.assertEqual(session.post.call_args.kwargs["headers"]["Authorization"], "Bearer direct-key")
+                with patch.dict(os.environ, {env_name: "environment-key"}, clear=True):
+                    await api.evaluate("state", {"q": {}}, "jev-latest", provider, "  ")
+                    self.assertEqual(session.post.call_args.kwargs["headers"]["Authorization"], "Bearer environment-key")
+
+    async def test_provider_validation_and_key_isolation(self):
+        self.assertEqual(api.connection("openrouter", "jev-1.13.0")[2], "typesafe/jev-1.13")
+        self.assertEqual(api.connection("openrouter", "typesafe/custom-version")[2], "typesafe/custom-version")
+        with self.assertRaisesRegex(ValueError, "jev-preview"):
+            api.connection("openrouter", "jev-preview")
+        with self.assertRaisesRegex(ValueError, "Unknown Jev provider"):
+            api.connection("invalid", "jev-latest")
+        with patch.dict(os.environ, {"TYPESAFE_API_KEY": "direct-only"}, clear=True):
+            with self.assertRaisesRegex(ValueError, "OPENROUTER_API_KEY"):
+                await api.evaluate("", {"x": {}}, "jev-latest", "openrouter")
+            self.assertEqual((await api.evaluate("", {}, "jev-latest", "openrouter"))["answers"], {})
+
     async def test_missing_key_and_no_questions(self):
         with patch.dict(os.environ, {}, clear=True):
             self.assertEqual((await api.evaluate("", {}, "jev-latest"))["answers"], {})
@@ -214,7 +281,7 @@ class NodeTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_autogrow_and_json_single_request(self):
         field = n.JevField.execute("duration", "Length?", "infer", {"kind": "extract", "source": "", "extractor": {"extractor": "number"}}).result[0]
-        async def fake(state, questions, model):
+        async def fake(state, questions, model, provider="typesafe", api_key=""):
             self.assertEqual(len(questions), 2)
             return response_for(questions)
         with patch.object(api, "evaluate", side_effect=fake) as transport:
