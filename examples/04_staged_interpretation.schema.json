@@ -1,0 +1,10 @@
+{
+  "format": {
+    "type": "choice",
+    "instructions": "Is the deliverable a still image or a moving video?",
+    "criteria": {
+      "video": "Video, animation or moving footage",
+      "image": "A single still image"
+    }
+  }
+}

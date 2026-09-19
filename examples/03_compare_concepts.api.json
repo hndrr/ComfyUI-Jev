@@ -1,0 +1,90 @@
+{
+  "1": {
+    "class_type": "JevInterpret",
+    "inputs": {
+      "state": "Brief: a quiet album cover about leaving home; avoid an obvious road-to-horizon image. Candidate a: an empty kitchen, one cup still warm. Candidate b: a traveler on a road at sunset.",
+      "state_format": "text",
+      "schema_json": "{\n  \"a_adherence\": {\n    \"type\": \"score\",\n    \"instructions\": \"Read candidate a in the state. How closely does this candidate follow the brief?\",\n    \"criteria\": [\n      \"Does not satisfy the stated criterion\",\n      \"Partially satisfies it\",\n      \"Fully satisfies it\"\n    ]\n  },\n  \"a_originality\": {\n    \"type\": \"score\",\n    \"instructions\": \"Read candidate a in the state. How distinct is this candidate from the conventional solution described in the brief?\",\n    \"criteria\": [\n      \"Does not satisfy the stated criterion\",\n      \"Partially satisfies it\",\n      \"Fully satisfies it\"\n    ]\n  },\n  \"b_adherence\": {\n    \"type\": \"score\",\n    \"instructions\": \"Read candidate b in the state. How closely does this candidate follow the brief?\",\n    \"criteria\": [\n      \"Does not satisfy the stated criterion\",\n      \"Partially satisfies it\",\n      \"Fully satisfies it\"\n    ]\n  },\n  \"b_originality\": {\n    \"type\": \"score\",\n    \"instructions\": \"Read candidate b in the state. How distinct is this candidate from the conventional solution described in the brief?\",\n    \"criteria\": [\n      \"Does not satisfy the stated criterion\",\n      \"Partially satisfies it\",\n      \"Fully satisfies it\"\n    ]\n  }\n}",
+      "model": "jev-latest",
+      "refresh": 0
+    },
+    "_meta": {
+      "title": "Interpret the brief"
+    }
+  },
+  "2": {
+    "class_type": "JevRank",
+    "inputs": {
+      "judgments": [
+        "1",
+        0
+      ],
+      "field_ids": "a_adherence\nb_adherence"
+    },
+    "_meta": {
+      "title": "Rank by adherence"
+    }
+  },
+  "3": {
+    "class_type": "JevWeightedScore",
+    "inputs": {
+      "judgments": [
+        "1",
+        0
+      ],
+      "weights_json": "{\"a_adherence\":0.7,\"a_originality\":0.3}"
+    },
+    "_meta": {
+      "title": "Candidate A"
+    }
+  },
+  "4": {
+    "class_type": "JevWeightedScore",
+    "inputs": {
+      "judgments": [
+        "1",
+        0
+      ],
+      "weights_json": "{\"b_adherence\":0.7,\"b_originality\":0.3}"
+    },
+    "_meta": {
+      "title": "Candidate B"
+    }
+  },
+  "5": {
+    "class_type": "PreviewAny",
+    "inputs": {
+      "source": [
+        "2",
+        2
+      ]
+    },
+    "_meta": {
+      "title": "Preview"
+    }
+  },
+  "6": {
+    "class_type": "PreviewAny",
+    "inputs": {
+      "source": [
+        "3",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Preview"
+    }
+  },
+  "7": {
+    "class_type": "PreviewAny",
+    "inputs": {
+      "source": [
+        "4",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Preview"
+    }
+  }
+}

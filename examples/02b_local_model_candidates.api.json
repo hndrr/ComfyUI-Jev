@@ -1,0 +1,86 @@
+{
+  "1": {
+    "class_type": "JevModelCandidates",
+    "inputs": {
+      "category": "loras",
+      "pattern": "*.safetensors",
+      "descriptions_json": "{}"
+    },
+    "_meta": {
+      "title": "Local LoRA catalog — filter compatible models"
+    }
+  },
+  "2": {
+    "class_type": "JevField",
+    "inputs": {
+      "field_id": "lora",
+      "instructions": "Which candidate best matches the requested visual style? Use the supplied descriptions.",
+      "presence": "infer",
+      "kind": "choice",
+      "kind.format": "json",
+      "kind.criteria": [
+        "1",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Choose a local LoRA"
+    }
+  },
+  "3": {
+    "class_type": "JevInterpret",
+    "inputs": {
+      "state": "自然な紙の質感と淡い色調。",
+      "state_format": "text",
+      "schema_json": "",
+      "model": "jev-latest",
+      "refresh": 0,
+      "schemas.schema0": [
+        "2",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Interpret the brief"
+    }
+  },
+  "4": {
+    "class_type": "JevResolve",
+    "inputs": {
+      "judgments": [
+        "3",
+        0
+      ],
+      "bindings_json": "{}"
+    },
+    "_meta": {
+      "title": "Map to production values"
+    }
+  },
+  "5": {
+    "class_type": "JevReadString",
+    "inputs": {
+      "result": [
+        "4",
+        0
+      ],
+      "field_id": "lora",
+      "pointer": ""
+    },
+    "_meta": {
+      "title": "lora"
+    }
+  },
+  "6": {
+    "class_type": "PreviewAny",
+    "inputs": {
+      "source": [
+        "5",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Preview"
+    }
+  }
+}
