@@ -1,0 +1,1172 @@
+{
+  "id": "00000000-0000-0000-0000-000000000000",
+  "revision": 0,
+  "last_node_id": 15,
+  "last_link_id": 30,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "PrimitiveStringMultiline",
+      "pos": [
+        100,
+        130
+      ],
+      "size": [
+        400,
+        200
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "値",
+          "name": "value",
+          "type": "STRING",
+          "widget": {
+            "name": "value"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "文字列",
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            16
+          ]
+        }
+      ],
+      "title": "制作指示 / Brief",
+      "properties": {
+        "Node name for S&R": "PrimitiveStringMultiline"
+      },
+      "widgets_values": [
+        "縦長。動きは控えめ。長さは8秒、24fpsで。"
+      ],
+      "widgets_values_named": {
+        "value": "縦長。動きは控えめ。長さは8秒、24fpsで。"
+      }
+    },
+    {
+      "id": 2,
+      "type": "JevField",
+      "pos": [
+        100,
+        460
+      ],
+      "size": [
+        400,
+        258
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "field_id",
+          "name": "field_id",
+          "type": "STRING",
+          "widget": {
+            "name": "field_id"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "instructions",
+          "name": "instructions",
+          "type": "STRING",
+          "widget": {
+            "name": "instructions"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "presence",
+          "name": "presence",
+          "type": "COMBO",
+          "widget": {
+            "name": "presence"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "kind",
+          "name": "kind",
+          "type": "COMFY_DYNAMICCOMBO_V3",
+          "widget": {
+            "name": "kind"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "format",
+          "name": "kind.format",
+          "type": "COMBO",
+          "widget": {
+            "name": "kind.format"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "criteria",
+          "name": "kind.criteria",
+          "type": "STRING",
+          "widget": {
+            "name": "kind.criteria"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "schema",
+          "name": "schema",
+          "type": "JEV_SCHEMA",
+          "links": [
+            17
+          ]
+        },
+        {
+          "localized_name": "schema_json",
+          "name": "schema_json",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "title": "aspect",
+      "properties": {
+        "Node name for S&R": "JevField"
+      },
+      "widgets_values": [
+        "aspect",
+        "Which frame orientation matches the requested deliverable?",
+        "infer",
+        "choice",
+        "json",
+        "{\n  \"portrait\": \"Vertical frame\",\n  \"landscape\": \"Horizontal frame\",\n  \"square\": \"Square frame\"\n}"
+      ],
+      "widgets_values_named": {
+        "field_id": "aspect",
+        "instructions": "Which frame orientation matches the requested deliverable?",
+        "presence": "infer",
+        "kind": "choice",
+        "kind.format": "json",
+        "kind.criteria": "{\n  \"portrait\": \"Vertical frame\",\n  \"landscape\": \"Horizontal frame\",\n  \"square\": \"Square frame\"\n}"
+      }
+    },
+    {
+      "id": 3,
+      "type": "JevField",
+      "pos": [
+        100,
+        848
+      ],
+      "size": [
+        400,
+        258
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "field_id",
+          "name": "field_id",
+          "type": "STRING",
+          "widget": {
+            "name": "field_id"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "instructions",
+          "name": "instructions",
+          "type": "STRING",
+          "widget": {
+            "name": "instructions"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "presence",
+          "name": "presence",
+          "type": "COMBO",
+          "widget": {
+            "name": "presence"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "kind",
+          "name": "kind",
+          "type": "COMFY_DYNAMICCOMBO_V3",
+          "widget": {
+            "name": "kind"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "format",
+          "name": "kind.format",
+          "type": "COMBO",
+          "widget": {
+            "name": "kind.format"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "criteria",
+          "name": "kind.criteria",
+          "type": "STRING",
+          "widget": {
+            "name": "kind.criteria"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "schema",
+          "name": "schema",
+          "type": "JEV_SCHEMA",
+          "links": [
+            18
+          ]
+        },
+        {
+          "localized_name": "schema_json",
+          "name": "schema_json",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "title": "motion",
+      "properties": {
+        "Node name for S&R": "JevField"
+      },
+      "widgets_values": [
+        "motion",
+        "How much camera or subject movement is requested?",
+        "infer",
+        "score",
+        "json",
+        "[\n  \"Locked frame, almost no movement\",\n  \"Gentle slow movement\",\n  \"Fast, sweeping or energetic movement\"\n]"
+      ],
+      "widgets_values_named": {
+        "field_id": "motion",
+        "instructions": "How much camera or subject movement is requested?",
+        "presence": "infer",
+        "kind": "score",
+        "kind.format": "json",
+        "kind.criteria": "[\n  \"Locked frame, almost no movement\",\n  \"Gentle slow movement\",\n  \"Fast, sweeping or energetic movement\"\n]"
+      }
+    },
+    {
+      "id": 4,
+      "type": "JevField",
+      "pos": [
+        100,
+        1236
+      ],
+      "size": [
+        400,
+        228
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "field_id",
+          "name": "field_id",
+          "type": "STRING",
+          "widget": {
+            "name": "field_id"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "instructions",
+          "name": "instructions",
+          "type": "STRING",
+          "widget": {
+            "name": "instructions"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "presence",
+          "name": "presence",
+          "type": "COMBO",
+          "widget": {
+            "name": "presence"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "kind",
+          "name": "kind",
+          "type": "COMFY_DYNAMICCOMBO_V3",
+          "widget": {
+            "name": "kind"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "source",
+          "name": "kind.source",
+          "type": "STRING",
+          "widget": {
+            "name": "kind.source"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "extractor",
+          "name": "kind.extractor",
+          "type": "COMFY_DYNAMICCOMBO_V3",
+          "widget": {
+            "name": "kind.extractor"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "schema",
+          "name": "schema",
+          "type": "JEV_SCHEMA",
+          "links": [
+            19
+          ]
+        },
+        {
+          "localized_name": "schema_json",
+          "name": "schema_json",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "title": "duration",
+      "properties": {
+        "Node name for S&R": "JevField"
+      },
+      "widgets_values": [
+        "duration",
+        "What is the requested duration in seconds, not the frame rate?",
+        "explicit",
+        "extract",
+        "",
+        "number"
+      ],
+      "widgets_values_named": {
+        "field_id": "duration",
+        "instructions": "What is the requested duration in seconds, not the frame rate?",
+        "presence": "explicit",
+        "kind": "extract",
+        "kind.source": "",
+        "kind.extractor": "number"
+      }
+    },
+    {
+      "id": 5,
+      "type": "JevInterpret",
+      "pos": [
+        600,
+        130
+      ],
+      "size": [
+        400,
+        298
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "schema0",
+          "name": "schemas.schema0",
+          "shape": 7,
+          "type": "JEV_SCHEMA",
+          "link": 17
+        },
+        {
+          "localized_name": "schema1",
+          "name": "schemas.schema1",
+          "shape": 7,
+          "type": "JEV_SCHEMA",
+          "link": 18
+        },
+        {
+          "localized_name": "schema2",
+          "name": "schemas.schema2",
+          "shape": 7,
+          "type": "JEV_SCHEMA",
+          "link": 19
+        },
+        {
+          "localized_name": "schema3",
+          "name": "schemas.schema3",
+          "shape": 7,
+          "type": "JEV_SCHEMA",
+          "link": null
+        },
+        {
+          "localized_name": "state",
+          "name": "state",
+          "type": "STRING",
+          "widget": {
+            "name": "state"
+          },
+          "link": 16
+        },
+        {
+          "localized_name": "state_format",
+          "name": "state_format",
+          "type": "COMBO",
+          "widget": {
+            "name": "state_format"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "schema_json",
+          "name": "schema_json",
+          "type": "STRING",
+          "widget": {
+            "name": "schema_json"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "model",
+          "name": "model",
+          "type": "COMFY_DYNAMICCOMBO_V3",
+          "widget": {
+            "name": "model"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "refresh",
+          "name": "refresh",
+          "type": "INT",
+          "widget": {
+            "name": "refresh"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "judgments",
+          "name": "judgments",
+          "type": "JEV_JUDGMENTS",
+          "links": [
+            20
+          ]
+        },
+        {
+          "localized_name": "response_json",
+          "name": "response_json",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "title": "Interpret the brief",
+      "properties": {
+        "Node name for S&R": "JevInterpret"
+      },
+      "widgets_values": [
+        "縦長、動きは控えめ、8秒",
+        "text",
+        "",
+        "jev-latest",
+        0,
+        "fixed"
+      ],
+      "widgets_values_named": {
+        "state": "縦長、動きは控えめ、8秒",
+        "state_format": "text",
+        "schema_json": "",
+        "model": "jev-latest",
+        "refresh": 0,
+        "control_after_generate": "randomize"
+      }
+    },
+    {
+      "id": 6,
+      "type": "JevResolve",
+      "pos": [
+        1100,
+        130
+      ],
+      "size": [
+        400,
+        200
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "judgments",
+          "name": "judgments",
+          "type": "JEV_JUDGMENTS",
+          "link": 20
+        },
+        {
+          "localized_name": "bindings_json",
+          "name": "bindings_json",
+          "type": "STRING",
+          "widget": {
+            "name": "bindings_json"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "result",
+          "name": "result",
+          "type": "JEV_RESULT",
+          "links": [
+            21,
+            22,
+            23,
+            24
+          ]
+        },
+        {
+          "localized_name": "values",
+          "name": "values",
+          "type": "DICT",
+          "links": null
+        },
+        {
+          "localized_name": "values_json",
+          "name": "values_json",
+          "type": "STRING",
+          "links": [
+            27
+          ]
+        }
+      ],
+      "title": "Map to production values",
+      "properties": {
+        "Node name for S&R": "JevResolve"
+      },
+      "widgets_values": [
+        "{\n  \"aspect\": {\n    \"values\": {\n      \"portrait\": {\n        \"width\": 720,\n        \"height\": 1280\n      },\n      \"landscape\": {\n        \"width\": 1280,\n        \"height\": 720\n      },\n      \"square\": {\n        \"width\": 1024,\n        \"height\": 1024\n      }\n    }\n  },\n  \"motion\": {\n    \"range\": [\n      0,\n      0.6\n    ]\n  },\n  \"duration\": {\n    \"convert\": \"int\",\n    \"default\": 8\n  }\n}"
+      ],
+      "widgets_values_named": {
+        "bindings_json": "{\n  \"aspect\": {\n    \"values\": {\n      \"portrait\": {\n        \"width\": 720,\n        \"height\": 1280\n      },\n      \"landscape\": {\n        \"width\": 1280,\n        \"height\": 720\n      },\n      \"square\": {\n        \"width\": 1024,\n        \"height\": 1024\n      }\n    }\n  },\n  \"motion\": {\n    \"range\": [\n      0,\n      0.6\n    ]\n  },\n  \"duration\": {\n    \"convert\": \"int\",\n    \"default\": 8\n  }\n}"
+      }
+    },
+    {
+      "id": 7,
+      "type": "JevReadInt",
+      "pos": [
+        1600,
+        130
+      ],
+      "size": [
+        270,
+        82
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "result",
+          "name": "result",
+          "type": "JEV_RESULT",
+          "link": 21
+        },
+        {
+          "localized_name": "field_id",
+          "name": "field_id",
+          "type": "STRING",
+          "widget": {
+            "name": "field_id"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "pointer",
+          "name": "pointer",
+          "type": "STRING",
+          "widget": {
+            "name": "pointer"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "integer",
+          "name": "integer",
+          "type": "INT",
+          "links": [
+            25
+          ]
+        }
+      ],
+      "title": "aspect/width",
+      "properties": {
+        "Node name for S&R": "JevReadInt"
+      },
+      "widgets_values": [
+        "aspect",
+        "/width"
+      ],
+      "widgets_values_named": {
+        "field_id": "aspect",
+        "pointer": "/width"
+      }
+    },
+    {
+      "id": 8,
+      "type": "JevReadInt",
+      "pos": [
+        1600,
+        342
+      ],
+      "size": [
+        270,
+        82
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "result",
+          "name": "result",
+          "type": "JEV_RESULT",
+          "link": 22
+        },
+        {
+          "localized_name": "field_id",
+          "name": "field_id",
+          "type": "STRING",
+          "widget": {
+            "name": "field_id"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "pointer",
+          "name": "pointer",
+          "type": "STRING",
+          "widget": {
+            "name": "pointer"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "integer",
+          "name": "integer",
+          "type": "INT",
+          "links": [
+            26
+          ]
+        }
+      ],
+      "title": "aspect/height",
+      "properties": {
+        "Node name for S&R": "JevReadInt"
+      },
+      "widgets_values": [
+        "aspect",
+        "/height"
+      ],
+      "widgets_values_named": {
+        "field_id": "aspect",
+        "pointer": "/height"
+      }
+    },
+    {
+      "id": 9,
+      "type": "JevReadFloat",
+      "pos": [
+        1600,
+        554
+      ],
+      "size": [
+        270,
+        82
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "result",
+          "name": "result",
+          "type": "JEV_RESULT",
+          "link": 23
+        },
+        {
+          "localized_name": "field_id",
+          "name": "field_id",
+          "type": "STRING",
+          "widget": {
+            "name": "field_id"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "pointer",
+          "name": "pointer",
+          "type": "STRING",
+          "widget": {
+            "name": "pointer"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "float",
+          "name": "float",
+          "type": "FLOAT",
+          "links": [
+            28
+          ]
+        }
+      ],
+      "title": "motion",
+      "properties": {
+        "Node name for S&R": "JevReadFloat"
+      },
+      "widgets_values": [
+        "motion",
+        ""
+      ],
+      "widgets_values_named": {
+        "field_id": "motion",
+        "pointer": ""
+      }
+    },
+    {
+      "id": 10,
+      "type": "JevReadInt",
+      "pos": [
+        1600,
+        766
+      ],
+      "size": [
+        270,
+        82
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "result",
+          "name": "result",
+          "type": "JEV_RESULT",
+          "link": 24
+        },
+        {
+          "localized_name": "field_id",
+          "name": "field_id",
+          "type": "STRING",
+          "widget": {
+            "name": "field_id"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "pointer",
+          "name": "pointer",
+          "type": "STRING",
+          "widget": {
+            "name": "pointer"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "integer",
+          "name": "integer",
+          "type": "INT",
+          "links": [
+            29
+          ]
+        }
+      ],
+      "title": "duration",
+      "properties": {
+        "Node name for S&R": "JevReadInt"
+      },
+      "widgets_values": [
+        "duration",
+        ""
+      ],
+      "widgets_values_named": {
+        "field_id": "duration",
+        "pointer": ""
+      }
+    },
+    {
+      "id": 11,
+      "type": "EmptyLatentImage",
+      "pos": [
+        1970,
+        130
+      ],
+      "size": [
+        270,
+        106
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "幅",
+          "name": "width",
+          "type": "INT",
+          "widget": {
+            "name": "width"
+          },
+          "link": 25
+        },
+        {
+          "localized_name": "高さ",
+          "name": "height",
+          "type": "INT",
+          "widget": {
+            "name": "height"
+          },
+          "link": 26
+        },
+        {
+          "localized_name": "バッチサイズ",
+          "name": "batch_size",
+          "type": "INT",
+          "widget": {
+            "name": "batch_size"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "潜在",
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            30
+          ]
+        }
+      ],
+      "title": "Native latent sizing",
+      "properties": {
+        "Node name for S&R": "EmptyLatentImage"
+      },
+      "widgets_values": [
+        512,
+        512,
+        1
+      ],
+      "widgets_values_named": {
+        "width": 512,
+        "height": 512,
+        "batch_size": 1
+      }
+    },
+    {
+      "id": 12,
+      "type": "PreviewAny",
+      "pos": [
+        1600,
+        978
+      ],
+      "size": [
+        210,
+        122
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "ソース",
+          "name": "source",
+          "type": "*",
+          "link": 27
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "文字列",
+          "name": "STRING",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "title": "Preview",
+      "properties": {
+        "Node name for S&R": "PreviewAny"
+      },
+      "widgets_values": [],
+      "widgets_values_named": {}
+    },
+    {
+      "id": 13,
+      "type": "PreviewAny",
+      "pos": [
+        1970,
+        366
+      ],
+      "size": [
+        210,
+        122
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "ソース",
+          "name": "source",
+          "type": "*",
+          "link": 28
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "文字列",
+          "name": "STRING",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "title": "Preview",
+      "properties": {
+        "Node name for S&R": "PreviewAny"
+      },
+      "widgets_values": [],
+      "widgets_values_named": {}
+    },
+    {
+      "id": 14,
+      "type": "PreviewAny",
+      "pos": [
+        1970,
+        618
+      ],
+      "size": [
+        210,
+        122
+      ],
+      "flags": {},
+      "order": 13,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "ソース",
+          "name": "source",
+          "type": "*",
+          "link": 29
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "文字列",
+          "name": "STRING",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "title": "Preview",
+      "properties": {
+        "Node name for S&R": "PreviewAny"
+      },
+      "widgets_values": [],
+      "widgets_values_named": {}
+    },
+    {
+      "id": 15,
+      "type": "PreviewAny",
+      "pos": [
+        2340,
+        130
+      ],
+      "size": [
+        210,
+        122
+      ],
+      "flags": {},
+      "order": 14,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "ソース",
+          "name": "source",
+          "type": "*",
+          "link": 30
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "文字列",
+          "name": "STRING",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "title": "Latent shape / native connection",
+      "properties": {
+        "Node name for S&R": "PreviewAny"
+      },
+      "widgets_values": [],
+      "widgets_values_named": {}
+    }
+  ],
+  "links": [
+    [
+      16,
+      1,
+      0,
+      5,
+      4,
+      "STRING"
+    ],
+    [
+      17,
+      2,
+      0,
+      5,
+      0,
+      "JEV_SCHEMA"
+    ],
+    [
+      18,
+      3,
+      0,
+      5,
+      1,
+      "JEV_SCHEMA"
+    ],
+    [
+      19,
+      4,
+      0,
+      5,
+      2,
+      "JEV_SCHEMA"
+    ],
+    [
+      20,
+      5,
+      0,
+      6,
+      0,
+      "JEV_JUDGMENTS"
+    ],
+    [
+      21,
+      6,
+      0,
+      7,
+      0,
+      "JEV_RESULT"
+    ],
+    [
+      22,
+      6,
+      0,
+      8,
+      0,
+      "JEV_RESULT"
+    ],
+    [
+      23,
+      6,
+      0,
+      9,
+      0,
+      "JEV_RESULT"
+    ],
+    [
+      24,
+      6,
+      0,
+      10,
+      0,
+      "JEV_RESULT"
+    ],
+    [
+      25,
+      7,
+      0,
+      11,
+      0,
+      "INT"
+    ],
+    [
+      26,
+      8,
+      0,
+      11,
+      1,
+      "INT"
+    ],
+    [
+      27,
+      6,
+      2,
+      12,
+      0,
+      "STRING"
+    ],
+    [
+      28,
+      9,
+      0,
+      13,
+      0,
+      "FLOAT"
+    ],
+    [
+      29,
+      10,
+      0,
+      14,
+      0,
+      "INT"
+    ],
+    [
+      30,
+      11,
+      0,
+      15,
+      0,
+      "LATENT"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 1,
+      "offset": [
+        0,
+        0
+      ]
+    }
+  },
+  "version": 0.4
+}

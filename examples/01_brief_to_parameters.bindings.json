@@ -1,0 +1,28 @@
+{
+  "aspect": {
+    "values": {
+      "portrait": {
+        "width": 720,
+        "height": 1280
+      },
+      "landscape": {
+        "width": 1280,
+        "height": 720
+      },
+      "square": {
+        "width": 1024,
+        "height": 1024
+      }
+    }
+  },
+  "motion": {
+    "range": [
+      0,
+      0.6
+    ]
+  },
+  "duration": {
+    "convert": "int",
+    "default": 8
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "base": {
+    "values": {
+      "linen": "woven linen, natural fibers",
+      "chrome": "polished chrome, controlled reflections",
+      "paper": "matte handmade paper"
+    }
+  },
+  "accents": {
+    "threshold": 0.65,
+    "values": {
+      "grain": "fine film grain",
+      "glow": "gentle bloom",
+      "edges": "crisp graphic outlines"
+    }
+  }
+}

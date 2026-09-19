@@ -1,0 +1,20 @@
+{
+  "base": {
+    "type": "choice",
+    "instructions": "Choose the base texture that matches the visual brief.",
+    "criteria": {
+      "linen": "Natural woven fabric; subdued tactile surface",
+      "chrome": "Polished reflective metal; clean industrial surface",
+      "paper": "Matte paper with visible fibers"
+    }
+  },
+  "accents": {
+    "type": "multi_choice",
+    "instructions": "Which optional finishing elements fit the brief?",
+    "criteria": {
+      "grain": "Fine photographic grain",
+      "glow": "Soft luminous bloom",
+      "edges": "Hard graphic outlines"
+    }
+  }
+}

@@ -1,0 +1,80 @@
+{
+  "1": {
+    "class_type": "JevInterpret",
+    "inputs": {
+      "state": "布の手触りが伝わるジャケット。細かな粒子感を足したいが、発光表現は不要。",
+      "state_format": "text",
+      "schema_json": "{\n  \"base\": {\n    \"type\": \"choice\",\n    \"instructions\": \"Choose the base texture that matches the visual brief.\",\n    \"criteria\": {\n      \"linen\": \"Natural woven fabric; subdued tactile surface\",\n      \"chrome\": \"Polished reflective metal; clean industrial surface\",\n      \"paper\": \"Matte paper with visible fibers\"\n    }\n  },\n  \"accents\": {\n    \"type\": \"multi_choice\",\n    \"instructions\": \"Which optional finishing elements fit the brief?\",\n    \"criteria\": {\n      \"grain\": \"Fine photographic grain\",\n      \"glow\": \"Soft luminous bloom\",\n      \"edges\": \"Hard graphic outlines\"\n    }\n  }\n}",
+      "model": "jev-latest",
+      "refresh": 0
+    },
+    "_meta": {
+      "title": "Interpret the brief"
+    }
+  },
+  "2": {
+    "class_type": "JevResolve",
+    "inputs": {
+      "judgments": [
+        "1",
+        0
+      ],
+      "bindings_json": "{\n  \"base\": {\n    \"values\": {\n      \"linen\": \"woven linen, natural fibers\",\n      \"chrome\": \"polished chrome, controlled reflections\",\n      \"paper\": \"matte handmade paper\"\n    }\n  },\n  \"accents\": {\n    \"threshold\": 0.65,\n    \"values\": {\n      \"grain\": \"fine film grain\",\n      \"glow\": \"gentle bloom\",\n      \"edges\": \"crisp graphic outlines\"\n    }\n  }\n}"
+    },
+    "_meta": {
+      "title": "Map to production values"
+    }
+  },
+  "3": {
+    "class_type": "JevReadString",
+    "inputs": {
+      "result": [
+        "2",
+        0
+      ],
+      "field_id": "base",
+      "pointer": ""
+    },
+    "_meta": {
+      "title": "base"
+    }
+  },
+  "4": {
+    "class_type": "PreviewAny",
+    "inputs": {
+      "source": [
+        "2",
+        2
+      ]
+    },
+    "_meta": {
+      "title": "Preview"
+    }
+  },
+  "5": {
+    "class_type": "StringConcatenate",
+    "inputs": {
+      "string_a": [
+        "3",
+        0
+      ],
+      "string_b": "album cover, generous negative space",
+      "delimiter": ", "
+    },
+    "_meta": {
+      "title": "Compose with existing text node"
+    }
+  },
+  "6": {
+    "class_type": "PreviewAny",
+    "inputs": {
+      "source": [
+        "5",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Preview"
+    }
+  }
+}
