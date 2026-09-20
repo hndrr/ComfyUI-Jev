@@ -1,5 +1,5 @@
 [project]
-name = "jev"
+name = "comfyui-jev"
 version = "0.1.0"
 description = "Jev text interpretation and judgments for ComfyUI: candidate selection, condition evaluation, scoring, number extraction, and local Skill selection. Includes OpenRouter text generation."
 readme = "README.md"

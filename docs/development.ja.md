@@ -18,7 +18,7 @@ python -m unittest discover -s tests -v
 
 ## Comfy Registryへの公開
 
-[`pyproject.toml`](../pyproject.toml)でRegistry ID `jev`、表示名`ComfyUI-Jev`、Publisher ID `hndr`を指定しています。公開するバージョンは`[project].version`で管理します。
+[`pyproject.toml`](../pyproject.toml)でRegistry ID `comfyui-jev`、表示名`ComfyUI-Jev`、Publisher ID `hndr`を指定しています。公開するバージョンは`[project].version`で管理します。
 
 ### 初回の設定
 
