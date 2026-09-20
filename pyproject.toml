@@ -1,0 +1,18 @@
+[project]
+name = "comfyui-jev"
+version = "0.1.0"
+description = "Jev text interpretation and judgments for ComfyUI: candidate selection, condition evaluation, scoring, number extraction, and local Skill selection. Includes OpenRouter text generation."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["aiohttp>=3.11.8", "PyYAML"]
+classifiers = ["Operating System :: OS Independent"]
+
+[project.urls]
+Repository = "https://github.com/hndrr/ComfyUI-Jev"
+Documentation = "https://github.com/hndrr/ComfyUI-Jev#readme"
+"Bug Tracker" = "https://github.com/hndrr/ComfyUI-Jev/issues"
+
+[tool.comfy]
+PublisherId = "hndr"
+DisplayName = "ComfyUI-Jev"
+requires-comfyui = ">=0.36.0"

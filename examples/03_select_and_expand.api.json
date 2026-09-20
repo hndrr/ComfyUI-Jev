@@ -2,13 +2,13 @@
   "1": {
     "class_type": "PrimitiveStringMultiline",
     "inputs": {
-      "value": "新しい香水の広告写真。上質で静かな印象にしたいが、冷たく威圧的にはしたくない。手に取る日常を想像できる、触感のある写真が欲しい。ボトルの形が分かる構図。"
+      "value": "An advertising photograph for a new perfume. It should feel refined and calm, while remaining warm and approachable. Create a tactile image that helps viewers imagine picking up the bottle in everyday life. Use a composition that clearly shows the shape of the bottle."
     }
   },
   "2": {
     "class_type": "StringFormat",
     "inputs": {
-      "f_string": "この香水の広告写真について、光・置き場所・周囲の素材を組み合わせた異なる撮影コンセプトを日本語で提案してください。各案は1〜2文。\n\n制作意図: {a}",
+      "f_string": "Suggest distinct photographic concepts in English for this perfume advertisement, combining lighting, setting, and surrounding materials. Write one or two sentences per concept.\n\nCreative brief: {a}",
       "values.a": [
         "1",
         0
@@ -39,7 +39,7 @@
         "1",
         0
       ],
-      "instructions": "制作意図との意味的な適合を比較して1案を選ぶ。単語の一致ではなく、光・素材・構図が与える印象を判断する。高級感だけでなく、親しみやすさと触れたくなる感覚を重視する。",
+      "instructions": "Choose the concept that best fits the creative intent. Judge the impression created by lighting, materials, and composition rather than matching keywords. Consider approachability and tactile appeal as well as a sense of luxury.",
       "task": "choice",
       "model": "jev-latest",
       "provider": "openrouter",
@@ -54,7 +54,7 @@
   "5": {
     "class_type": "StringFormat",
     "inputs": {
-      "f_string": "選ばれた撮影案を具体的な英語の画像生成プロンプトに展開してください。制作意図と選ばれた案を保ち、被写体・素材・光・カメラ位置を明記してください。見出し・説明・候補列挙は不要です。\n\n制作意図: {a}\n選ばれた案: {b}",
+      "f_string": "Expand the selected photographic concept into a detailed English image generation prompt. Preserve the creative intent and selected concept, and specify the subject, materials, lighting, and camera position. Return only the prompt, without headings, explanations, or a list of alternatives.\n\nCreative brief: {a}\nSelected concept: {b}",
       "values.a": [
         "1",
         0
