@@ -1,4 +1,6 @@
-# [WORK IN PROGRESS] ComfyUI-Jev
+# ComfyUI-Jev
+
+<sub>WORK IN PROGRESS</sub>
 
 English | [日本語](README.ja.md)
 
@@ -121,3 +123,7 @@ For the three image generation examples, replace `YOUR_SD_OR_SDXL_CHECKPOINT.saf
 Changing only the image generation seed or size reuses previous text generation and Jev judgments. See [execution and caching](docs/nodes.md#execution-and-caching) for details.
 
 For testing and Registry publishing, see the [development guide](docs/development.md).
+
+## License
+
+Licensed under the [MIT License](LICENSE).

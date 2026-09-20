@@ -1,4 +1,6 @@
-# [WORK IN PROGRESS] ComfyUI-Jev
+# ComfyUI-Jev
+
+<sub>WORK IN PROGRESS</sub>
 
 [English](README.md) | 日本語
 
@@ -121,3 +123,7 @@ Jev Interpret → Preview as Text
 画像生成側のseedやサイズだけを変えても、文章生成やJevの判定は再利用されます。詳しくは[実行とキャッシュ](docs/nodes.ja.md#実行とキャッシュ)を参照してください。
 
 開発・保守を行う方向けのテスト方法とRegistry公開手順は、[開発ガイド](docs/development.ja.md)にまとめています。
+
+## ライセンス
+
+[MITライセンス](LICENSE)で公開しています。
