@@ -2,165 +2,122 @@
 
 English | [日本語](README.ja.md)
 
-Custom nodes that generate creative options from text, use Jev to select the best match for your intent, and pass the result into an existing ComfyUI workflow.
+Custom nodes for using Jev's text interpretation and judgments in ComfyUI. Use natural-language instructions to select candidates, evaluate conditions, score text, or extract numbers, then pass the results to other nodes. Jev judgments use the TypeSafe API by default.
 
-This package provides **OpenRouter Text** for text generation, **Jev Interpret** for judgments, and **Jev Skill Choice** for selecting local Skills. Use standard nodes for text formatting, number conversion, branching, and image generation. You do not need to write schemas or candidate IDs by hand.
+| Node | Purpose |
+| --- | --- |
+| **Jev Interpret** | Select, judge, or score text, and extract numbers |
+| **Jev Skill Choice** | Select local Skills (`SKILL.md` files) for a request |
+| **OpenRouter Text** | Generate text or selection candidates with OpenRouter |
 
-```text
-Text → Format Text → OpenRouter Text (candidates)
-  └─────────────────────────────┐
-                               Jev Interpret → CLIP Text Encode → KSampler → VAE Decode → Save Image
-```
+[Installation](#installation) · [API keys](#api-key-setup) · [First workflow](#first-workflow) · [Examples](#example-workflows) · [Node reference](docs/nodes.md)
 
-An OpenRouter text model generates different creative options, and Jev compares them using your judgment instructions. For example, it can assess whether each option's lighting, materials, and composition fit a brief for a refined but approachable product photograph that feels part of everyday life.
+## Installation
 
-The documentation and example workflows use English by default. Japanese documentation is available in [README.ja.md](README.ja.md).
+Requires ComfyUI v0.36.0 or later and Python 3.10 or later. Choose either method below.
 
-## Installation and API keys
+### Install with ComfyUI Manager
 
-This package uses the ComfyUI v0.36.0 V3 API. Place this directory at `custom_nodes/ComfyUI-Jev` and restart ComfyUI. No custom JavaScript or additional dependencies are required.
+1. Open **Manager** in ComfyUI and search for `ComfyUI-Jev`.
+2. Click **Install** for **ComfyUI-Jev**.
+3. Restart ComfyUI after installation.
 
-To use OpenRouter, set the key in the environment that starts ComfyUI:
+### Install with git clone
+
+With Git installed, open a terminal in your ComfyUI `custom_nodes` directory. Replace the path with your own installation:
 
 ```sh
-export OPENROUTER_API_KEY="your-key"
+cd /path/to/ComfyUI/custom_nodes
+git clone https://github.com/hndrr/ComfyUI-Jev.git
 ```
 
-Set `provider` to `openrouter` in **Jev Interpret** or **Jev Skill Choice** to use the same environment variable as **OpenRouter Text**. You can also enter a key directly in each node's `api_key` field. An explicit key takes precedence; an empty field uses the environment variable. A standard Text node can supply the same key to both `api_key` inputs.
+The dependencies, `aiohttp` and `PyYAML`, are included in a standard ComfyUI installation. If they are missing, run this command in **the Python environment used by ComfyUI**:
 
-To query TypeSafe directly, set **Jev Interpret**'s `provider` to `typesafe` and set `TYPESAFE_API_KEY`. **OpenRouter Text** always uses OpenRouter.
+```sh
+python -m pip install "aiohttp>=3.11.8" PyYAML
+```
 
-Keys entered directly are saved in workflows and execution history. Remove them before sharing. Restart ComfyUI after setting environment variables.
+For Windows Portable, use its bundled Python from the `ComfyUI_windows_portable` directory:
 
-## OpenRouter Text
+```powershell
+.\python_embeded\python.exe -m pip install "aiohttp>=3.11.8" PyYAML
+```
 
-Use this node for general text generation or to generate candidates for Jev.
+Restart ComfyUI and refresh the interface. Search for **Jev Interpret**, **Jev Skill Choice**, and **OpenRouter Text** to confirm installation.
 
-| Input | Description |
-| --- | --- |
-| `prompt` | Natural-language generation instructions. Accepts connections from standard Text or Format Text nodes. |
-| `system` | Optional additional instructions. Can be empty. |
-| `output_mode = text` | General text generation. Connect the `text` output to any existing STRING input. |
-| `output_mode = candidates` | Generate `count` distinct candidates. Connect `text` to Jev Interpret's `candidates_json`. |
-| `model` | Select a text model from the OpenRouter catalog, or use `custom` to enter a model ID. |
-| `api_key` | Uses `OPENROUTER_API_KEY` when empty. |
-| `refresh` | Keep fixed to reuse results. Change it to regenerate. |
-| `temperature` / `max_tokens` | Advanced settings for generation variability and the output token limit. |
+## API key setup
 
-The model list comes from [OpenRouter's model catalog](https://openrouter.ai/docs/api/api-reference/models/list-all-models-and-their-properties) when ComfyUI starts. Listing models requires no API key. If fetching fails, the last saved list is used; if no list has been saved, enter an ID with `custom`. Restart ComfyUI to update the list.
+### TypeSafe (default)
 
-Candidate mode requests Structured Outputs internally and returns an array of candidates as a STRING. **Candidates do not need to fit on one line.** Line breaks, paragraphs, and whitespace within each candidate are preserved. A mismatched candidate count, duplicates, empty candidates, or a truncated response produces an explicit error.
+**Jev Interpret and Jev Skill Choice use TypeSafe by default** (`provider = typesafe`). Create an API key at [TypeSafe](https://typesafe.ai/) and set it in the environment that starts ComfyUI.
 
-Candidate mode requires a model that supports Structured Outputs, including when using `custom`. Regular `text` mode does not request Structured Outputs. The `response_json` output contains the original API response, including the model name and usage.
+macOS / Linux:
 
-## Jev Interpret
+```sh
+export TYPESAFE_API_KEY="your-typesafe-key"
+```
 
-Put the text to evaluate or your creative intent in `state`, and the judgment instructions in `instructions`. The `choice`, `multi_choice`, `score`, and `suggest` tasks accept candidates in either of these ways:
+Windows PowerShell:
 
-- **Generated candidates:** Set OpenRouter Text's `output_mode` to `candidates` and connect `text` to `candidates_json`.
-- **Existing options:** Connect STRING outputs from standard Text nodes or similar nodes to the Autogrow inputs, starting with `candidates.candidate0`. Each connection is one candidate, including multiline text.
+```powershell
+$env:TYPESAFE_API_KEY="your-typesafe-key"
+```
 
-When both are connected, individually connected candidates come first in input-number order, followed by the generated candidates. No candidate names or schemas are required.
+Start ComfyUI from that terminal. Leave `provider` set to `typesafe` and `api_key` empty in both nodes. If configuring the launch environment is inconvenient, enter your TypeSafe key directly in each node's `api_key` field.
 
-| `task` | Judgment and `result` output |
-| --- | --- |
-| `choice` | Select one candidate and return its complete text unchanged as a STRING. Connect directly to CLIP Text Encode or similar nodes. |
-| `multi_choice` | Evaluate each candidate independently and return matching candidates as a JSON array in their original order. |
-| `boolean` | Evaluate whether the specified condition is met, returning the string `true` or `false`. No candidates are needed. |
-| `score` | Supply at least two candidates as an ordered scale from low to high. Return a numeric string from 0 to 1. |
-| `extract` | Select a number from `state` that answers the instructions and return its original text. No candidate inputs are needed. No match produces an error. |
-| `suggest` | Rank candidates by description, then evaluate the full content of the shortlist. Return matching candidate values as a JSON array, or `[]` when none fit. |
+An explicit key takes precedence; an empty field uses the environment variable. Keys entered in nodes are saved in workflows and execution history, so remove them before sharing. After changing environment variables, restart ComfyUI from that environment.
 
-For `boolean` and `multi_choice`, `threshold` defaults to 0.5 and uses a `>=` comparison. Change it in the advanced settings. Score confidence is not mixed into the evaluation value. Use standard Convert Number nodes when you need a number, or Compare Text and Switch nodes for conditional branching.
+### Using OpenRouter
 
-Outputs are `result` (STRING), `details` (DICT containing judgment details), and `response_json` (STRING containing the raw API response). You can also pass JSON analysis results to `state` as text. This node does not send images, audio, or video directly to Jev.
+**OpenRouter Text** requires an OpenRouter API key for text generation. Set `OPENROUTER_API_KEY` in the same launch environment, or enter it in that node's `api_key` field:
 
-The default Jev model is `jev-latest`. TypeSafe also supports `jev-preview`, `jev-1.13.0`, and custom IDs. With OpenRouter, `jev-latest` is sent as `~typesafe/jev-latest` and `jev-1.13.0` as `typesafe/jev-1.13`. OpenRouter does not support `jev-preview`. Select `custom` to specify another ID.
+```sh
+export OPENROUTER_API_KEY="your-openrouter-key"
+```
 
-## Image generation examples
+In PowerShell, use `$env:OPENROUTER_API_KEY="your-openrouter-key"`.
 
-Load an `examples/*.workflow.json` file into ComfyUI. A matching `.api.json` file is included for each example. The following three examples are connected through the standard Checkpoint Loader, CLIP Text Encode, Empty Latent Image, KSampler, VAE Decode, and Save Image nodes.
+To use OpenRouter for Jev judgments as well, change `provider` to `openrouter` in Jev Interpret or Jev Skill Choice. An empty `api_key` field then uses `OPENROUTER_API_KEY`. When entering a key directly, use the key for the selected provider.
 
-1. **[01_generate_and_select.workflow.json](examples/01_generate_and_select.workflow.json)** — Generate four photographic prompts from a creative brief, let Jev choose one, and generate an image. Start here.
-2. **[02_manual_candidates.workflow.json](examples/02_manual_candidates.workflow.json)** — Supply existing multiline prompts through standard Text nodes and let Jev select one. Does not call a text generation API.
-3. **[03_select_and_expand.workflow.json](examples/03_select_and_expand.workflow.json)** — Generate and select a photographic concept, then expand it into a detailed image prompt using OpenRouter Text in regular text mode.
+## First workflow
 
-Before running, replace `YOUR_SD_OR_SDXL_CHECKPOINT.safetensors` in Checkpoint Loader with an installed SD 1.5 / SDXL checkpoint that includes CLIP and VAE. Set image size, seed, steps, and other generation settings in the standard nodes. The examples do not download models.
+After setting your TypeSafe key, try judging whether a sentence meets a condition.
 
-## Candidate suggestions
+```text
+Jev Interpret → Preview as Text
+```
 
-Use `task = suggest` to find procedures or creative directions that help with the request in `state`. Supply the candidate text through `candidates` or `candidates_json` and describe what to look for in `instructions`.
+1. Add **Jev Interpret** and set `task = boolean`, `provider = typesafe`, and `model = jev-latest`. No candidate connections are needed.
+2. Set `state` to `What time does tomorrow's meeting start?` and `instructions` to `Is this text a question asking someone to provide an answer?`.
+3. Connect `result` to a standard **Preview as Text** node and run the workflow. The judgment appears as the string `true` or `false`.
 
-Jev first checks whether specialized guidance is needed, then ranks candidates and evaluates the full text of the shortlist. It returns selected candidates as a JSON array in the STRING `result`. The result is `[]` when guidance is unnecessary or no candidate fits. Connect `result` to a standard Preview as Text node to inspect it. Use `choice` when you want to select one option without this need-for-guidance check.
+To branch on the result, use standard nodes such as **Compare Text** and **Switch**. See the [node reference](docs/nodes.md) for candidate selection, scoring, and other judgment tasks.
 
-| Advanced setting | Default | Purpose |
+## Example workflows
+
+The bundled workflows demonstrate ways to use judgment results, such as choosing a prompt for image generation or selecting local Skills. Save a `.workflow.json` file below and drag it into ComfyUI. The example text is in English.
+
+**The bundled examples are saved with `provider = openrouter`. To use TypeSafe, change the Jev node's `provider` to `typesafe` after loading the workflow.** Text generation with OpenRouter Text still requires an OpenRouter key.
+
+| Example | What it does | Needed in addition to the Jev API key |
 | --- | --- | --- |
-| `shortlist_size` | 3 | Number of candidates whose full text is evaluated. |
-| `max_selections` | 1 | Maximum number of candidates to return. |
-| `gate_threshold` | 0.3 | Minimum assessed need for specialized guidance before evaluating the shortlist. |
-| `threshold` | 0.5 | Minimum fit required for each selected candidate. |
+| [02_manual_candidates.workflow.json](examples/02_manual_candidates.workflow.json) | Choose an existing prompt with Jev and generate an image | SD 1.5 / SDXL checkpoint |
+| [01_generate_and_select.workflow.json](examples/01_generate_and_select.workflow.json) | Generate four photographic prompts and create an image from Jev's choice | OpenRouter key and checkpoint |
+| [03_select_and_expand.workflow.json](examples/03_select_and_expand.workflow.json) | Generate and select a concept, then expand it into a detailed image prompt | OpenRouter key and checkpoint |
+| [04_skill_choice.workflow.json](examples/04_skill_choice.workflow.json) | Select local Skills and preview their contents and priorities | Installed Skills |
 
-To separate a candidate's description from its output, connect a standard Text node containing a JSON array like this to `candidates_json`:
+For the three image generation examples, replace `YOUR_SD_OR_SDXL_CHECKPOINT.safetensors` in Checkpoint Loader with an installed SD 1.5 / SDXL checkpoint that includes CLIP and VAE. Adjust image size, seed, and steps in the standard nodes.
 
-```json
-[
-  {
-    "description": "Soft daylight for a warm, tactile product photograph",
-    "content": "Place the bottle on natural linen beside a window. Use diffused side light and keep the background simple.",
-    "value": "Amber perfume bottle on natural linen, soft window light, warm neutral tones"
-  },
-  {
-    "description": "Hard studio light for a dramatic, sculptural product photograph",
-    "content": "Place the bottle on dark stone. Use a narrow side light to emphasize its silhouette and reflections.",
-    "value": "Perfume bottle on dark stone, hard side lighting, deep shadows, sculptural composition"
-  }
-]
-```
+## Troubleshooting
 
-Use `description` for the short description, `content` for the full text to evaluate, and `value` for the text or JSON value to return. If `content` is omitted, Jev uses `description`. With the default settings, selected values are returned unchanged inside a JSON array. To evaluate a file's contents, supply the contents as text.
-
-The `choice` and `multi_choice` tasks also accept these records. They compare `description` and return the selected `value` or values.
-
-## Jev Skill Choice
-
-Select installed Skills for a request. Enter the request in `prompt`; the node selects relevant Skills and outputs their complete contents with application priorities. It discovers shared agent Skills in `.agents/skills` and Claude Skills in `.claude/skills`, under both the user home and the ComfyUI project directory. If `CLAUDE_CONFIG_DIR` is set, it changes only the Claude user location. Linked copies of the same Skill file are loaded once.
-
-[04_skill_choice.workflow.json](examples/04_skill_choice.workflow.json) discovers installed Skills and shows the selected text and data with standard Preview as Text nodes.
-
-```text
-Text → Jev Skill Choice → Preview as Text
-          ↑
-     Installed Skills
-```
-
-| Input | Purpose |
+| Symptom | What to check |
 | --- | --- |
-| `directory` | Select a discovered Skill directory from the dropdown. `automatic` uses all discovered directories; `custom` shows a field for an arbitrary path. Searches recursively for `SKILL.md`, including linked Skill directories. Relative paths start at the ComfyUI directory. |
-| `prompt` | The work for which Skills should be selected. |
-| `instructions` | Selection criteria. Defaults to checking usefulness and prerequisites. |
-| `max_selections` | Maximum number of selected Skills; default 3. |
-| `strength_mode` | `automatic` scores each Skill's role from 0 to 2 and omits zero scores. `uniform` assigns 1 to every selected Skill. |
-| `shortlist_size` | Maximum number of Skills whose full contents are evaluated; default 5. |
-| `threshold` / `gate_threshold` | Minimum fit and need for specialized guidance; defaults 0.5 and 0.3. |
+| Nodes are missing | Check your ComfyUI version, restart it, and look for `import failed` in the startup log |
+| Missing key or authentication error | Check that the key matches `provider` and that `api_key` does not contain an old or different key |
+| OpenRouter model list is empty | Enter a model ID with `custom`. Restart ComfyUI to fetch the list again |
+| Candidate generation fails | Use a model that supports Structured Outputs. Increase `max_tokens` if the response was truncated |
+| Running again returns the same result | ComfyUI reuses cached results. Change the relevant node's `refresh` to request a new result |
 
-Set `provider`, `model`, and `api_key` as for Jev Interpret. Skill descriptions and shortlisted file contents are sent to the selected API along with the prompt. The node reads each `SKILL.md`; referenced files and scripts are outside its loading scope.
+Changing only the image generation seed or size reuses previous text generation and Jev judgments. See [execution and caching](docs/nodes.md#execution-and-caching) for details.
 
-YAML front matter can provide `name` and `description`. Without them, the directory name and file contents are used. Changes to the files, including additions and removals, trigger a new selection on the next run. Change `refresh` to request another selection with the same inputs.
-
-Outputs are `text` (STRING containing the selected contents and priorities), `skills` (DICT containing a `skills` list of `name`, `path`, `description`, `content`, and `strength` records), `details` (DICT containing selection results), and `response_json` (STRING containing API responses). When no Skill is suitable, `text` is empty and `skills` is `{"skills": []}`.
-
-Connect `text` to OpenRouter Text's `system` input to use the selected guidance for generation, and supply the generation request separately to `prompt`. Priorities express how strongly to apply the guidance; they do not change model weights.
-
-## Caching, errors, and tests
-
-The nodes use ComfyUI's cache. Changing only the image generation seed, width, or height does not trigger another text generation or Jev request. Changing only Jev's judgment instructions can reuse previously generated candidates. Change a node's `refresh` to request a new result from that node on the next run.
-
-Changes to a request node's own inputs, model, key, thresholds, or other settings invalidate its cached result. Each API request has a 60-second timeout. HTTP 429 / 529 responses are retried up to twice according to `Retry-After`. Other failures and malformed responses are returned as errors.
-
-```sh
-../../venv/bin/python -m unittest discover -s tests -v
-```
-
-The regular tests do not call paid APIs. They use mocked responses to verify candidate generation, selection, and reuse, and run through standard nodes to Save Image using the actual ComfyUI execution engine. Checkpoint loading and trained-model computation are mocked, so these tests do not evaluate image quality or real API judgment accuracy.
-
-API references: [TypeSafe](https://docs.typesafe.ai/introduction) / [OpenRouter Chat Completions](https://openrouter.ai/docs/api/api-reference/chat/create-a-chat-completion) / [Structured Outputs](https://openrouter.ai/docs/guides/features/structured-outputs)
+For testing and Registry publishing, see the [development guide](docs/development.md).

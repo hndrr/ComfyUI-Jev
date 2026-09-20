@@ -2,165 +2,122 @@
 
 [English](README.md) | 日本語
 
-英語版のREADMEとサンプルワークフローを標準としています。このファイルは日本語版ドキュメントです。
+Jevによる文章の解釈・判定をComfyUIで使うためのカスタムノードです。自然文の指示に基づいて候補の選択、条件の判定、採点、数値の抽出などを行い、結果を他のノードへ渡せます。判定には既定でTypeSafeのAPIを使います。
 
-文章から制作案を生成し、Jevで意図に合う案を選んで、既存のComfyUIワークフローへ渡すカスタムノードです。
+| ノード | できること |
+| --- | --- |
+| **Jev Interpret** | 文章の選択・判定・採点・数値の抽出 |
+| **Jev Skill Choice** | ローカルのSkill（`SKILL.md`）から依頼に合うものを選択 |
+| **OpenRouter Text** | OpenRouterで文章や選択候補を生成 |
 
-文章生成の **OpenRouter Text**、判定の **Jev Interpret**、ローカルSkill選択の **Jev Skill Choice** を提供します。文章の結合・数値変換・分岐・画像生成は標準ノードを使います。スキーマや候補IDを手で書く必要はありません。
+[インストール](#インストール) · [APIキーの設定](#apiキーの設定) · [まず試す](#まず試す) · [サンプル](#サンプルワークフロー) · [ノードの詳細](docs/nodes.ja.md)
 
-```text
-Text → Format Text → OpenRouter Text (candidates)
-  └─────────────────────────────┐
-                               Jev Interpret → CLIP Text Encode → KSampler → VAE Decode → Save Image
-```
+## インストール
 
-OpenRouterの文章生成モデルが異なる制作案を出し、Jevが判断指示に沿って比較します。たとえば「上質だが冷たくない、手に取る日常を想像できる広告写真」という意図に、候補の光・素材・構図が合うかを判断します。
+ComfyUI v0.36.0以降とPython 3.10以降が必要です。次のどちらかの方法で導入してください。
 
-## 導入とAPIキー
+### ComfyUI Managerから入れる
 
-ComfyUI v0.36.0のV3 APIを使用します。このディレクトリを`custom_nodes/ComfyUI-Jev`へ配置し、ComfyUIを再起動してください。独自JavaScriptや追加の依存ライブラリはありません。
+1. ComfyUIの **Manager** を開き、`ComfyUI-Jev`を検索します。
+2. **ComfyUI-Jev** の **Install** を押します。
+3. インストール後、ComfyUIを再起動します。
 
-OpenRouterを使う場合は、ComfyUIを起動する環境にキーを設定します。
+### git cloneで入れる
+
+Gitをインストールした環境で、ComfyUIの`custom_nodes`ディレクトリへ移動して実行します。パスは自分のComfyUIの場所に置き換えてください。
 
 ```sh
-export OPENROUTER_API_KEY="your-key"
+cd /path/to/ComfyUI/custom_nodes
+git clone https://github.com/hndrr/ComfyUI-Jev.git
 ```
 
-`Jev Interpret`または`Jev Skill Choice`の`provider`を`openrouter`にすると、OpenRouter Textと同じ環境変数を使えます。各ノードの`api_key`欄へ直接入力しても使えます。直接入力が優先され、空欄なら環境変数を読みます。標準のTextノードから両方の`api_key`入力へ同じキーを接続することもできます。
+依存ライブラリは`aiohttp`と`PyYAML`です。標準のComfyUI環境には含まれています。不足している場合は、**ComfyUIが使うPython環境**で次を実行してください。
 
-TypeSafeへ直接問い合わせる場合は`Jev Interpret`の`provider`を`typesafe`にし、`TYPESAFE_API_KEY`を設定します。OpenRouter Textは常にOpenRouterを使います。
+```sh
+python -m pip install "aiohttp>=3.11.8" PyYAML
+```
 
-直接入力したキーはワークフロー・実行履歴にも保存されます。共有する場合はキーを消してください。環境変数を設定した後はComfyUIの再起動が必要です。
+Windows Portableの場合は、`ComfyUI_windows_portable`ディレクトリから同梱Pythonで実行します。
 
-## OpenRouter Text
+```powershell
+.\python_embeded\python.exe -m pip install "aiohttp>=3.11.8" PyYAML
+```
 
-普通の文章生成にも、Jevへ渡す候補生成にも使えます。
+ComfyUIを再起動し、画面を再読み込みしてください。ノード検索で **Jev Interpret**、**Jev Skill Choice**、**OpenRouter Text** が見つかれば導入完了です。
 
-| 入力 | 内容 |
-| --- | --- |
-| `prompt` | 自然文の生成指示。標準TextやFormat Textからも接続可能 |
-| `system` | 任意の追加指示。空欄でも利用可能 |
-| `output_mode = text` | 通常の文章生成。出力`text`をそのまま既存のSTRING入力へ接続 |
-| `output_mode = candidates` | `count`個の異なる候補を生成。出力`text`をJev Interpretの`candidates_json`へ接続 |
-| `model` | OpenRouterのカタログから文章生成モデルを選択。`custom`で任意IDも指定可能 |
-| `api_key` | 空欄なら`OPENROUTER_API_KEY` |
-| `refresh` | 固定値。変更すると再生成 |
-| `temperature` / `max_tokens` | 詳細設定。生成のばらつき・最大出力トークン数 |
+## APIキーの設定
 
-モデル一覧はComfyUI起動時に[OpenRouterのカタログ](https://openrouter.ai/docs/api/api-reference/models/list-all-models-and-their-properties)から取得します。一覧の取得にAPIキーは不要です。取得に失敗した場合は前回保存した一覧を使い、保存済みの一覧がなければ`custom`でIDを入力できます。一覧の更新にはComfyUIを再起動してください。
+### TypeSafe（デフォルト）
 
-候補モードではノード内部でStructured Outputsを指定し、候補の配列をSTRINGとして出力します。**1行1候補という制約はありません。** 各候補の改行・段落・空白を保ちます。候補数の不一致、重複、空の候補、途中で終了した応答は明示的なエラーにします。
+**Jev InterpretとJev Skill Choiceは、既定でTypeSafeを使います**（`provider = typesafe`）。[TypeSafe](https://typesafe.ai/)でAPIキーを発行し、ComfyUIを起動する環境に設定します。
 
-候補モードにはStructured Outputs対応のモデルが必要です。`custom`でも対応モデルを指定してください。通常の`text`モードではStructured Outputsを要求しません。出力`response_json`にはモデル名・使用量を含む元のAPI応答が入ります。
+macOS / Linux:
 
-## Jev Interpret
+```sh
+export TYPESAFE_API_KEY="your-typesafe-key"
+```
 
-`state`に判断対象や制作意図、`instructions`に判断指示を書きます。`choice`・`multi_choice`・`score`・`suggest`の候補は、次のどちらでも渡せます。
+Windows PowerShell:
 
-- **自動生成**：OpenRouter Textの`output_mode`を`candidates`にして、`text`を`candidates_json`へ接続。
-- **手持ちの案**：標準TextノードなどのSTRINGを、Autogrowの`candidates.candidate0`以降へ接続。1接続が1候補で、複数行でもそのまま扱います。
+```powershell
+$env:TYPESAFE_API_KEY="your-typesafe-key"
+```
 
-両方を接続した場合は、個別接続の候補を接続番号順、その後に生成候補を並べます。候補の名前やスキーマの記述は不要です。
+設定したターミナルからComfyUIを起動してください。両ノードの`provider`は`typesafe`、`api_key`は空欄のまま使えます。起動環境に設定しにくい場合は、各ノードの`api_key`欄へTypeSafeのキーを直接入力しても使えます。
 
-| `task` | 判断と出力`result` |
-| --- | --- |
-| `choice` | 候補から1つ選び、その候補の全文をそのままSTRING出力。CLIP Text Encodeなどへ直結可能 |
-| `multi_choice` | 各候補を独立に判定し、該当した候補を定義順のJSON配列として出力 |
-| `boolean` | 指示した条件への該当を判定し、`true` / `false`を文字列で出力。候補入力は不要 |
-| `score` | 2つ以上の候補を「低い→高い」の評価段階として使用。0〜1の数値文字列を出力 |
-| `extract` | `state`内の数値から指示に合うものを選び、元の文字列を出力。候補入力は不要。該当なしはエラー |
-| `suggest` | 説明で順位付けし、上位候補の本文を再判定。適合した候補の値をJSON配列で出力。該当なしは`[]` |
+直接入力したキーが優先され、空欄の場合に環境変数を読みます。直接入力したキーはワークフロー・実行履歴にも保存されるため、共有前に削除してください。環境変数を変更した場合は、その環境からComfyUIを起動し直します。
 
-booleanとmulti_choiceの`threshold`は既定0.5、比較は`>=`です。詳細設定から変更できます。scoreのconfidenceを評価値へ混ぜません。数値が必要なら標準のConvert Number、真偽による分岐にはCompare TextとSwitchなどを使います。
+### OpenRouterを使う場合
 
-出力は`result`（STRING）、`details`（DICT、判定の詳細）、`response_json`（STRING、生のAPI応答）です。JSON形式の解析結果も、必要ならstateへ文字列として渡せます。画像・音声・動画を直接Jevへ送るノードではありません。
+**OpenRouter Text**で文章を生成する場合は、OpenRouterのAPIキーも必要です。同じ起動環境で`OPENROUTER_API_KEY`を設定するか、このノードの`api_key`欄へ入力します。
 
-Jevモデルは既定`jev-latest`。TypeSafeでは`jev-preview`、`jev-1.13.0`、任意IDにも対応します。OpenRouterでは`jev-latest`を`~typesafe/jev-latest`、`jev-1.13.0`を`typesafe/jev-1.13`として送信します。`jev-preview`は未対応です。任意IDは`custom`で指定します。
+```sh
+export OPENROUTER_API_KEY="your-openrouter-key"
+```
 
-## 実際に画像生成するサンプル
+PowerShellでは`$env:OPENROUTER_API_KEY="your-openrouter-key"`です。
 
-`examples/*.workflow.json`をComfyUIへ読み込んでください。同名の`.api.json`も同梱しています。以下の3例は標準のCheckpoint Loader、CLIP Text Encode、Empty Latent Image、KSampler、VAE Decode、Save Imageまで接続済みです。
+Jevの判定にもOpenRouterを使う場合は、Jev InterpretまたはJev Skill Choiceの`provider`を`openrouter`へ変更します。`api_key`が空欄なら`OPENROUTER_API_KEY`を読みます。直接入力する場合も、選択したproviderのキーを使ってください。
 
-1. **[01_generate_and_select.workflow.json](examples/01_generate_and_select.workflow.json)** — 制作意図から撮影プロンプトを4案生成し、Jevが選んだ案で画像を生成します。最初に使う例です。
-2. **[02_manual_candidates.workflow.json](examples/02_manual_candidates.workflow.json)** — 手持ちの複数行プロンプトを標準Textノードから渡し、Jevで選択。文章生成APIは使いません。
-3. **[03_select_and_expand.workflow.json](examples/03_select_and_expand.workflow.json)** — 撮影コンセプトを生成・選択してから、OpenRouter Textの通常モードで具体的な画像プロンプトへ展開します。
+## まず試す
 
-実行前にCheckpoint Loaderの`YOUR_SD_OR_SDXL_CHECKPOINT.safetensors`を、インストール済みのSD 1.5 / SDXL系チェックポイントに変更してください。CLIP・VAEを含むモデルを想定しています。画像サイズ・seed・stepsなどは標準ノードで設定します。モデルのダウンロードは行いません。
+TypeSafeのキーを設定したら、文章が指定した条件に当てはまるかを判定してみます。
 
-## 候補の提案
+```text
+Jev Interpret → Preview as Text
+```
 
-`task = suggest`では、`state`に書いた依頼に役立つ手順や制作方針を候補から選びます。候補の文章を`candidates`または`candidates_json`へ渡し、`instructions`に選ぶ基準を指定してください。
+1. **Jev Interpret**を追加し、`task = boolean`、`provider = typesafe`、`model = jev-latest`にします。候補の接続は不要です。
+2. `state`に`明日の打ち合わせは何時に始まりますか？`、`instructions`に`この文章は相手に回答を求める質問ですか？`と入力します。
+3. `result`を標準の **Preview as Text** へ接続して実行します。判定結果が文字列の`true`または`false`で表示されます。
 
-まず専門的な手順や指針が必要かを判断し、候補の説明で順位付けした後、上位候補の本文を評価します。選ばれた候補はSTRINGの`result`へJSON配列として出力されます。指針が不要な場合や、適合する候補がない場合は`[]`になります。標準のPreview as Textへ接続して確認できます。この必要性の判定を挟まずに1案を選びたい場合は、`choice`を使ってください。
+条件によって処理を分岐する場合は、標準の **Compare Text** と **Switch** などへつなげます。候補の選択や採点など、他の判定方法は[ノードの詳細](docs/nodes.ja.md)を参照してください。
 
-| 詳細設定 | 既定値 | 用途 |
+## サンプルワークフロー
+
+判定結果を利用する例として、プロンプトを選んで画像を生成するワークフローや、ローカルのSkillを選ぶワークフローを同梱しています。下の`.workflow.json`を保存し、ComfyUIへドラッグして読み込んでください。サンプル内の文章は英語です。
+
+**同梱サンプルは`provider = openrouter`で保存されています。TypeSafeを使う場合は、読み込み後にJevノードの`provider`を`typesafe`へ変更してください。** OpenRouter Textの文章生成には引き続きOpenRouterのキーが必要です。
+
+| サンプル | 内容 | JevのAPIキーに加えて必要なもの |
 | --- | --- | --- |
-| `shortlist_size` | 3 | 本文を評価する候補数 |
-| `max_selections` | 1 | 出力する候補数の上限 |
-| `gate_threshold` | 0.3 | 専門的な手順や指針が必要と判断するしきい値 |
-| `threshold` | 0.5 | 各候補を採用するための適合度のしきい値 |
+| [02_manual_candidates.workflow.json](examples/02_manual_candidates.workflow.json) | 手持ちのプロンプトをJevで選び、画像を生成 | SD 1.5 / SDXL系チェックポイント |
+| [01_generate_and_select.workflow.json](examples/01_generate_and_select.workflow.json) | 撮影プロンプトを4案生成し、Jevが選んだ案で画像を生成 | OpenRouterのキー、チェックポイント |
+| [03_select_and_expand.workflow.json](examples/03_select_and_expand.workflow.json) | 撮影コンセプトを生成・選択し、詳細な画像プロンプトへ展開 | OpenRouterのキー、チェックポイント |
+| [04_skill_choice.workflow.json](examples/04_skill_choice.workflow.json) | ローカルのSkillを選び、本文と適用度を表示 | インストール済みのSkill |
 
-候補の説明と出力を分けたい場合は、次のようなJSON配列を標準Textノードに入力し、`candidates_json`へ接続します。
+画像生成の3例では、Checkpoint Loaderの`YOUR_SD_OR_SDXL_CHECKPOINT.safetensors`を、CLIP・VAEを含むインストール済みのSD 1.5 / SDXL系チェックポイントに変更します。画像サイズ・seed・stepsは標準ノードで調整してください。
 
-```json
-[
-  {
-    "description": "自然光で温かみと手触りを伝える商品写真",
-    "content": "ボトルを窓際のリネンに置く。柔らかな横からの光を使い、背景は簡潔にする。",
-    "value": "Amber perfume bottle on natural linen, soft window light, warm neutral tones"
-  },
-  {
-    "description": "硬い光で立体感と緊張感を出す商品写真",
-    "content": "ボトルを暗い石の上に置く。細く絞った横からの光で輪郭と反射を強調する。",
-    "value": "Perfume bottle on dark stone, hard side lighting, deep shadows, sculptural composition"
-  }
-]
-```
+## 困ったとき
 
-`description`には短い説明、`content`には評価する本文、`value`には選択後に出力したい文字列やJSONの値を指定します。`content`を省略した場合は`description`を使います。既定の設定では、選ばれた`value`をそのままJSON配列に入れて返します。ファイルの内容を評価したい場合も、その本文をテキストとして入力してください。
-
-`choice`・`multi_choice`でもこの形式を使えます。`description`を比較し、選ばれた`value`を出力します。
-
-## Jev Skill Choice
-
-インストール済みのSkillから、依頼に合うものを選びます。`prompt`に依頼文を入力すると、適合するSkillの全文と適用度を出力します。エージェント共通の`.agents/skills`とClaudeの`.claude/skills`を、ユーザー領域とComfyUIプロジェクト内から自動検出します。`CLAUDE_CONFIG_DIR`が設定されている場合は、Claudeのユーザー領域だけその設定に従います。同じSkillファイルへのリンクは重複して読み込みません。
-
-[04_skill_choice.workflow.json](examples/04_skill_choice.workflow.json)は、インストール済みSkillを自動検出し、標準のPreview as Textで本文とデータを確認するサンプルです。
-
-```text
-Text → Jev Skill Choice → Preview as Text
-          ↑
-     インストール済みのSkill
-```
-
-| 入力 | 用途 |
+| 症状 | 確認すること |
 | --- | --- |
-| `directory` | 検出したSkillの場所をコンボボックスで選択。`automatic`は検出した場所すべてが対象。`custom`を選ぶと任意パスの入力欄を表示。リンク先のSkillも含めて`SKILL.md`を再帰的に読み込み。相対パスはComfyUIのディレクトリが基準 |
-| `prompt` | Skillを選ぶ対象の依頼文 |
-| `instructions` | 選択基準。既定では依頼への有用性と前提条件を確認 |
-| `max_selections` | 選択するSkill数の上限。既定3 |
-| `strength_mode` | `automatic`は各Skillの役割を0〜2で評価し、0は除外。`uniform`は選んだSkillをすべて1に設定 |
-| `shortlist_size` | 全文を評価するSkill数の上限。既定5 |
-| `threshold` / `gate_threshold` | 適合度と専門的な指針の必要性のしきい値。既定0.5 / 0.3 |
+| ノードが見つからない | ComfyUIのバージョンと再起動を確認し、起動ログの`import failed`を調べる |
+| APIキーが見つからない・認証エラーになる | `provider`とキーの発行元が一致しているか、`api_key`欄に別のキーが残っていないか確認する |
+| OpenRouterのモデル一覧が空 | `custom`でモデルIDを入力する。一覧の再取得にはComfyUIを再起動する |
+| 候補生成がエラーになる | Structured Outputs対応モデルを使い、途中で切れている場合は`max_tokens`を増やす |
+| 再実行しても結果が変わらない | ComfyUIのキャッシュを利用しているため、再問い合わせしたいノードの`refresh`を変更する |
 
-`provider`・`model`・`api_key`はJev Interpretと同様に設定します。Skillの説明と上位候補のファイル内容は、依頼文とともに選択したAPIへ送信されます。読み込み対象は各`SKILL.md`で、そこから参照される別ファイルやスクリプトは対象に含みません。
+画像生成側のseedやサイズだけを変えても、文章生成やJevの判定は再利用されます。詳しくは[実行とキャッシュ](docs/nodes.ja.md#実行とキャッシュ)を参照してください。
 
-YAMLのフロントマターに`name`と`description`を指定できます。省略した場合はフォルダー名とファイル全文を使います。ファイルの追加・削除・内容変更は、次の実行時の再判定に反映されます。同じ入力で選び直す場合は`refresh`を変更してください。
-
-出力は`text`（選んだ本文と適用度を含むSTRING）、`skills`（`name`・`path`・`description`・`content`・`strength`を持つレコードの`skills`配列を含むDICT）、`details`（判定結果のDICT）、`response_json`（API応答のSTRING）です。該当なしの場合、`text`は空文字、`skills`は`{"skills": []}`になります。
-
-`text`をOpenRouter Textの`system`へ接続すると、選んだ指針を文章生成に渡せます。生成の依頼文は別途`prompt`へ入力してください。適用度は指針をどの程度重視するかを伝える値で、モデル内部の重みは変更しません。
-
-## キャッシュ・エラー・検証
-
-ComfyUIのキャッシュを使用します。画像生成側のseed・幅・高さだけの変更では、文章生成もJevの問い合わせも増えません。Jevの判断指示だけを変えた場合は、生成済み候補を再利用できます。ノードの`refresh`を変更すると、次の実行時にそのノードへ再問い合わせします。
-
-入力・モデル・キー・しきい値など、問い合わせノード自身の設定変更はキャッシュ更新の対象です。APIは1回60秒、429 / 529は`Retry-After`に従い最大2回再試行します。それ以外の失敗や不正な応答はエラーとして返します。
-
-```sh
-../../venv/bin/python -m unittest discover -s tests -v
-```
-
-通常テストは有料APIを呼びません。モック応答から候補生成・選択・再利用を確認し、実際のComfyUI実行エンジンで標準ノードを通してSave Imageまで実行します。チェックポイント読込・学習済みモデルの計算はモックなので、画質や実APIでの判断精度を検証するテストではありません。
-
-API仕様: [TypeSafe](https://docs.typesafe.ai/introduction) / [OpenRouter Chat Completions](https://openrouter.ai/docs/api/api-reference/chat/create-a-chat-completion) / [Structured Outputs](https://openrouter.ai/docs/guides/features/structured-outputs)
+開発・保守を行う方向けのテスト方法とRegistry公開手順は、[開発ガイド](docs/development.ja.md)にまとめています。
