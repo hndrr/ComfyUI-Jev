@@ -1,4 +1,4 @@
-# ComfyUI-Jev
+# [WORK IN PROGRESS] ComfyUI-Jev
 
 自然文を、ユーザー定義の意味スキーマに沿って解釈し、ComfyUIの制作パラメータへ変換します。
 
