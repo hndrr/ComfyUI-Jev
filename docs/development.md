@@ -18,7 +18,7 @@ Each example in `examples/` has a `.workflow.json` for the UI and a matching `.a
 
 ## Publishing to Comfy Registry
 
-[`pyproject.toml`](../pyproject.toml) defines Registry ID `jev`, display name `ComfyUI-Jev`, and publisher `hndr`. The release version is maintained in `[project].version`.
+[`pyproject.toml`](../pyproject.toml) defines Registry ID `comfyui-jev`, display name `ComfyUI-Jev`, and publisher `hndr`. The release version is maintained in `[project].version`.
 
 ### Initial setup
 
