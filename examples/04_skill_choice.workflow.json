@@ -72,7 +72,7 @@
         },
         {
           "name": "directory",
-          "type": "STRING",
+          "type": "COMFY_DYNAMICCOMBO_V3",
           "widget": {
             "name": "directory"
           },
@@ -190,7 +190,7 @@
       },
       "widgets_values": [
         "Write an image generation prompt and a short caption for a warm, approachable perfume advertisement.",
-        "~/.claude/skills",
+        "automatic",
         "Select skills that directly help with the requested work. Check each skill's purpose and prerequisites.",
         "jev-latest",
         "openrouter",
@@ -205,7 +205,7 @@
       ],
       "widgets_values_named": {
         "prompt": "Write an image generation prompt and a short caption for a warm, approachable perfume advertisement.",
-        "directory": "~/.claude/skills",
+        "directory": "automatic",
         "instructions": "Select skills that directly help with the requested work. Check each skill's purpose and prerequisites.",
         "model": "jev-latest",
         "provider": "openrouter",

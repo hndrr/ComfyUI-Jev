@@ -10,26 +10,49 @@ import yaml
 from .semantics import dumps
 
 
+def skill_directories(base_dir):
+    home = Path.home()
+    project = Path(base_dir)
+    config_dir = os.environ.get("CLAUDE_CONFIG_DIR", "").strip()
+    claude_dir = Path(config_dir).expanduser() if config_dir else home / ".claude"
+    roots = (home / ".agents" / "skills", project / ".agents" / "skills",
+             claude_dir / "skills", project / ".claude" / "skills")
+    return tuple(dict.fromkeys(root.resolve() for root in roots if root.is_dir()))
+
+
 def read_skills(directory, base_dir):
-    if not directory.strip():
-        raise ValueError("Jev Skill Choice: specify a directory containing SKILL.md files")
-    root = Path(directory.strip()).expanduser()
-    if not root.is_absolute():
-        root = Path(base_dir) / root
-    root = root.resolve()
-    if not root.is_dir():
-        raise ValueError(f"Jev Skill Choice: directory does not exist: {root}")
+    if isinstance(directory, dict):
+        selection = directory["directory"]
+        if selection == "automatic":
+            directory = ""
+        elif selection == "custom":
+            directory = directory["path"]
+            if not directory.strip():
+                raise ValueError("Jev Skill Choice: enter a directory for custom")
+        else:
+            directory = selection
+    if directory.strip():
+        root = Path(directory.strip()).expanduser()
+        if not root.is_absolute():
+            root = Path(base_dir) / root
+        root = root.resolve()
+        if not root.is_dir():
+            raise ValueError(f"Jev Skill Choice: directory does not exist: {root}")
+        roots = [root]
+    else:
+        roots = skill_directories(base_dir)
     paths = set()
     visited = set()
-    for current, directories, files in os.walk(root, followlinks=True):
-        resolved = Path(current).resolve()
-        if resolved in visited:
-            directories.clear()
-            continue
-        visited.add(resolved)
-        directories.sort()
-        if "SKILL.md" in files:
-            paths.add((Path(current) / "SKILL.md").resolve())
+    for root in roots:
+        for current, directories, files in os.walk(root, followlinks=True):
+            resolved = Path(current).resolve()
+            if resolved in visited:
+                directories.clear()
+                continue
+            visited.add(resolved)
+            directories.sort()
+            if "SKILL.md" in files:
+                paths.add((Path(current) / "SKILL.md").resolve())
     records = []
     for path in sorted(paths):
         content = path.read_text(encoding="utf-8-sig")

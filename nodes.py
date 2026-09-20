@@ -85,10 +85,15 @@ class JevSkillChoice(io.ComfyNode):
     def define_schema(cls):
         return io.Schema(
             node_id="JevSkillChoice", display_name="Jev Skill Choice", category="Jev",
-            description="Select guidance for a prompt from installed Claude skills. Outputs selected contents and priorities.",
+            description="Select guidance for a prompt from installed skills. Discovers shared agent and Claude skill directories. Outputs selected contents and priorities.",
             inputs=[
                 io.String.Input("prompt", multiline=True, default="Write a detailed image prompt for a warm, approachable perfume advertisement."),
-                io.String.Input("directory", default="~/.claude/skills", tooltip="Reads installed Claude skills by default. Change this path to use another skill directory. Relative paths use the ComfyUI directory; ~ is supported."),
+                io.DynamicCombo.Input("directory", options=[
+                    io.DynamicCombo.Option("automatic", []),
+                    *[io.DynamicCombo.Option(str(root), []) for root in skills.skill_directories(folder_paths.base_path)],
+                    io.DynamicCombo.Option("custom", [io.String.Input("path", default="",
+                        tooltip="Skill directory. Relative paths use the ComfyUI directory; ~ is supported.")]),
+                ], tooltip="Select a discovered skill directory, automatic to use all discovered directories, or custom to enter a path. Discovers shared agent and Claude skills."),
                 io.String.Input("instructions", multiline=True, default="Select skills that directly help with the requested work. Check each skill's purpose and prerequisites."),
                 *jev_connection_inputs(),
                 io.Int.Input("max_selections", default=3, min=1, tooltip="Maximum number of skills to return. May return none."),

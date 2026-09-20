@@ -12,7 +12,7 @@
         "1",
         0
       ],
-      "directory": "~/.claude/skills",
+      "directory": "automatic",
       "instructions": "Select skills that directly help with the requested work. Check each skill's purpose and prerequisites.",
       "model": "jev-latest",
       "provider": "openrouter",

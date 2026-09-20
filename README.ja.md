@@ -123,19 +123,19 @@ Jevモデルは既定`jev-latest`。TypeSafeでは`jev-preview`、`jev-1.13.0`�
 
 ## Jev Skill Choice
 
-インストール済みのClaude用Skillから、依頼に合うものを選びます。`prompt`に依頼文を入力すると、既定の`~/.claude/skills`から読み込み、適合するSkillの全文と適用度を出力します。別の場所を使う場合は`directory`を変更してください。
+インストール済みのSkillから、依頼に合うものを選びます。`prompt`に依頼文を入力すると、適合するSkillの全文と適用度を出力します。エージェント共通の`.agents/skills`とClaudeの`.claude/skills`を、ユーザー領域とComfyUIプロジェクト内から自動検出します。`CLAUDE_CONFIG_DIR`が設定されている場合は、Claudeのユーザー領域だけその設定に従います。同じSkillファイルへのリンクは重複して読み込みません。
 
-[04_skill_choice.workflow.json](examples/04_skill_choice.workflow.json)は、`~/.claude/skills`からSkillを選び、標準のPreview as Textで本文とデータを確認するサンプルです。
+[04_skill_choice.workflow.json](examples/04_skill_choice.workflow.json)は、インストール済みSkillを自動検出し、標準のPreview as Textで本文とデータを確認するサンプルです。
 
 ```text
 Text → Jev Skill Choice → Preview as Text
           ↑
-     ~/.claude/skills
+     インストール済みのSkill
 ```
 
 | 入力 | 用途 |
 | --- | --- |
-| `directory` | 既定は`~/.claude/skills`。リンク先のSkillも含めて`SKILL.md`を再帰的に探索。相対パスはComfyUIのディレクトリが基準 |
+| `directory` | 検出したSkillの場所をコンボボックスで選択。`automatic`は検出した場所すべてが対象。`custom`を選ぶと任意パスの入力欄を表示。リンク先のSkillも含めて`SKILL.md`を再帰的に読み込み。相対パスはComfyUIのディレクトリが基準 |
 | `prompt` | Skillを選ぶ対象の依頼文 |
 | `instructions` | 選択基準。既定では依頼への有用性と前提条件を確認 |
 | `max_selections` | 選択するSkill数の上限。既定3 |
