@@ -123,19 +123,19 @@ The `choice` and `multi_choice` tasks also accept these records. They compare `d
 
 ## Jev Skill Choice
 
-Select installed Claude Skills for a request. Enter the request in `prompt`; the node reads `~/.claude/skills` by default, selects relevant Skills, and outputs their complete contents with application priorities. Change `directory` to use another location.
+Select installed Skills for a request. Enter the request in `prompt`; the node selects relevant Skills and outputs their complete contents with application priorities. It discovers shared agent Skills in `.agents/skills` and Claude Skills in `.claude/skills`, under both the user home and the ComfyUI project directory. If `CLAUDE_CONFIG_DIR` is set, it changes only the Claude user location. Linked copies of the same Skill file are loaded once.
 
-[04_skill_choice.workflow.json](examples/04_skill_choice.workflow.json) selects from `~/.claude/skills` and shows the selected text and data with standard Preview as Text nodes.
+[04_skill_choice.workflow.json](examples/04_skill_choice.workflow.json) discovers installed Skills and shows the selected text and data with standard Preview as Text nodes.
 
 ```text
 Text → Jev Skill Choice → Preview as Text
           ↑
-     ~/.claude/skills
+     Installed Skills
 ```
 
 | Input | Purpose |
 | --- | --- |
-| `directory` | Defaults to `~/.claude/skills`. Searches recursively for `SKILL.md`, including linked Skill directories. Relative paths start at the ComfyUI directory. |
+| `directory` | Select a discovered Skill directory from the dropdown. `automatic` uses all discovered directories; `custom` shows a field for an arbitrary path. Searches recursively for `SKILL.md`, including linked Skill directories. Relative paths start at the ComfyUI directory. |
 | `prompt` | The work for which Skills should be selected. |
 | `instructions` | Selection criteria. Defaults to checking usefulness and prerequisites. |
 | `max_selections` | Maximum number of selected Skills; default 3. |
