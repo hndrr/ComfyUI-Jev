@@ -244,13 +244,18 @@ class TransportTests(unittest.IsolatedAsyncioTestCase):
 
 
 class NodeTests(unittest.IsolatedAsyncioTestCase):
-    async def test_two_nodes_and_native_types(self):
-        classes = await (await package.comfy_entrypoint()).get_node_list()
-        self.assertEqual(classes, [n.JevInterpret, n.OpenRouterText])
+    async def test_registered_nodes_and_native_types(self):
+        with patch.object(package.model_catalog, "load", new_callable=AsyncMock) as load:
+            classes = await (await package.comfy_entrypoint()).get_node_list()
+            load.assert_awaited_once()
+        self.assertEqual(classes, [n.JevInterpret, n.OpenRouterText, n.JevSkillChoice])
         n.JevInterpret.INPUT_TYPES()
         self.assertEqual(n.JevInterpret.RETURN_TYPES, ["STRING", "DICT", "STRING"])
         n.OpenRouterText.INPUT_TYPES()
         self.assertEqual(n.OpenRouterText.RETURN_TYPES, ["STRING", "STRING"])
+        n.JevSkillChoice.INPUT_TYPES()
+        self.assertEqual(n.JevSkillChoice.RETURN_TYPES, ["STRING", "DICT", "DICT", "STRING"])
+        self.assertNotIn("skill_strength", str(n.JevInterpret.INPUT_TYPES()))
 
     async def test_candidates_preserve_multiline_and_connection_order(self):
         first = " A prompt with spaces\n\nSecond paragraph. "

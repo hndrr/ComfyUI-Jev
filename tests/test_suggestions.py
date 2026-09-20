@@ -6,8 +6,8 @@ from test_jev import api, n, response_for, s
 
 
 CANDIDATES = [
-    {'description': f'Skill {i}: description', 'content': f'COMPLETE BODY {i}\nSecond paragraph.',
-     'value': {'skill_path': f'/existing/skill-{i}/SKILL.md', 'strength': 1.0}}
+    {'description': f'Approach {i}: description', 'content': f'COMPLETE BODY {i}\nSecond paragraph.',
+     'value': {'prompt': f'Image prompt {i}', 'weight': 1.0}}
     for i in range(4)
 ]
 
@@ -37,7 +37,7 @@ def reply(questions, winner=None, fits=None, gated=False, scores=None):
 class SuggestionTests(unittest.IsolatedAsyncioTestCase):
     async def select(self, **kwargs):
         return await n.JevInterpret.execute(
-            'Create an image prompt.', 'Choose useful skill guidance for this request.', 'suggest',
+            'Create an image prompt.', 'Choose a useful creative approach for this request.', 'suggest',
             {'model': 'jev-latest'}, provider='openrouter', candidates_json=s.dumps(CANDIDATES), **kwargs,
         )
 
@@ -113,72 +113,3 @@ class SuggestionTests(unittest.IsolatedAsyncioTestCase):
         with patch.object(api, 'evaluate', side_effect=evaluate):
             output = await n.JevInterpret.execute('brief', 'Choose', 'choice', {'model': 'jev-latest'}, candidates_json=s.dumps(CANDIDATES))
             self.assertEqual(json.loads(output.result[0]), CANDIDATES[0]['value'])
-
-    async def test_automatic_strength_scores_are_batched_and_independent(self):
-        seen = []
-        async def evaluate(state, questions, model, **kwargs):
-            seen.append(questions)
-            if 'gate_work' in questions:
-                return reply(questions)
-            self.assertEqual(set(questions), {f'{kind}_c{i}' for i in range(3) for kind in ('fits', 'applicability')})
-            self.assertIn('COMPLETE BODY 1', questions['applicability_c1']['instructions']['candidate']['content'])
-            return reply(questions, fits={'c0': 0.99, 'c1': 0.5, 'c2': 0.9}, scores={'c0': 1.2, 'c1': 3.6, 'c2': 4})
-        original = s.dumps(CANDIDATES)
-        with patch.object(api, 'evaluate', side_effect=evaluate) as transport:
-            output = await self.select(skill_strength='automatic', max_selections=3)
-        self.assertEqual(transport.await_count, 2)
-        values = json.loads(output.result[0])
-        self.assertEqual(values, [{**CANDIDATES[i]['value'], 'strength': strength} for i, strength in [(2, 2), (1, 1.8), (0, 0.6)]])
-        self.assertEqual(output.result[1]['strengths'], {'c2': 2, 'c1': 1.8, 'c0': 0.6})
-        self.assertEqual(s.dumps(CANDIDATES), original)
-
-    async def test_automatic_strength_omits_zero_and_failed_fit_before_limit(self):
-        async def evaluate(state, questions, model, **kwargs):
-            if 'gate_work' in questions:
-                return reply(questions)
-            return reply(questions, fits={'c0': 0.99, 'c1': 0.49, 'c2': 0.5}, scores={'c0': 0, 'c1': 4, 'c2': 3})
-        with patch.object(api, 'evaluate', side_effect=evaluate):
-            output = await self.select(skill_strength='automatic', max_selections=1)
-        self.assertEqual(json.loads(output.result[0]), [{**CANDIDATES[2]['value'], 'strength': 1.5}])
-
-    async def test_automatic_strength_ties_keep_catalog_order(self):
-        async def evaluate(state, questions, model, **kwargs):
-            if 'gate_work' in questions:
-                result = reply(questions, winner='c2')
-                result['answers']['which']['probabilities'] = {'c0': 0.2, 'c1': 0.3, 'c2': 0.5, 'c3': 0}
-                return result
-            return reply(questions, scores={'c0': 2, 'c1': 2, 'c2': 2})
-        with patch.object(api, 'evaluate', side_effect=evaluate):
-            output = await self.select(skill_strength='automatic', max_selections=2)
-        self.assertEqual(output.result[1]['selected'], ['c0', 'c1'])
-
-    async def test_automatic_strength_empty_and_gated_results(self):
-        with patch.object(api, 'evaluate', side_effect=lambda state, questions, model, **kw: reply(questions, gated=True)) as transport:
-            output = await self.select(skill_strength='automatic')
-            self.assertEqual(output.result[0], '[]')
-            self.assertEqual(output.result[1]['strengths'], {})
-            output = await n.JevInterpret.execute('hi', 'Choose', 'suggest', {'model': 'jev-latest'}, candidates_json='[]', skill_strength='automatic')
-            self.assertEqual(output.result[0], '[]')
-            self.assertEqual(transport.await_count, 1)
-
-    async def test_automatic_strength_rejects_bad_candidates_before_api(self):
-        for value in ('text', {}, {'skill_path': ''}, {'skill_path': 3}):
-            with self.subTest(value=value), patch.object(api, 'evaluate') as transport:
-                with self.assertRaisesRegex(ValueError, 'candidate c0.*skill_path'):
-                    await n.JevInterpret.execute('brief', 'Choose', 'suggest', {'model': 'jev-latest'},
-                                                 candidates_json=s.dumps([{'description': 'Skill', 'value': value}]), skill_strength='automatic')
-                transport.assert_not_called()
-
-    async def test_automatic_strength_requires_valid_score_answers(self):
-        for invalid in (None, -1, 5, float('nan'), '2'):
-            async def evaluate(state, questions, model, **kwargs):
-                result = reply(questions)
-                if 'applicability_c0' in questions:
-                    if invalid is None:
-                        del result['answers']['applicability_c0']
-                    else:
-                        result['answers']['applicability_c0']['score'] = invalid
-                return result
-            with self.subTest(invalid=invalid), patch.object(api, 'evaluate', side_effect=evaluate):
-                with self.assertRaisesRegex(ValueError, 'candidate c0'):
-                    await self.select(skill_strength='automatic')

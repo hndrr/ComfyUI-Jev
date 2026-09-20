@@ -42,10 +42,10 @@
         "Node name for S&R": "PrimitiveStringMultiline"
       },
       "widgets_values": [
-        "新しい香水の広告写真。上質で静かな印象にしたいが、冷たく威圧的にはしたくない。手に取る日常を想像できる、触感のある写真が欲しい。ボトルの形が分かる構図。"
+        "An advertising photograph for a new perfume. It should feel refined and calm, while remaining warm and approachable. Create a tactile image that helps viewers imagine picking up the bottle in everyday life. Use a composition that clearly shows the shape of the bottle."
       ],
       "widgets_values_named": {
-        "value": "新しい香水の広告写真。上質で静かな印象にしたいが、冷たく威圧的にはしたくない。手に取る日常を想像できる、触感のある写真が欲しい。ボトルの形が分かる構図。"
+        "value": "An advertising photograph for a new perfume. It should feel refined and calm, while remaining warm and approachable. Create a tactile image that helps viewers imagine picking up the bottle in everyday life. Use a composition that clearly shows the shape of the bottle."
       }
     },
     {
@@ -95,10 +95,10 @@
         "Node name for S&R": "StringFormat"
       },
       "widgets_values": [
-        "次の制作意図を出発点に、素材・光・構図の異なる撮影案を考えてください。各案は、そのまま画像生成に使える具体的な英語プロンプトにしてください。説明・見出しは不要です。\n\n制作意図: {a}"
+        "Use the following creative brief to develop photographic concepts with different materials, lighting, and compositions. Write each concept as a concrete English prompt ready for image generation. Do not include explanations or headings.\n\nCreative brief: {a}"
       ],
       "widgets_values_named": {
-        "f_string": "次の制作意図を出発点に、素材・光・構図の異なる撮影案を考えてください。各案は、そのまま画像生成に使える具体的な英語プロンプトにしてください。説明・見出しは不要です。\n\n制作意図: {a}"
+        "f_string": "Use the following creative brief to develop photographic concepts with different materials, lighting, and compositions. Write each concept as a concrete English prompt ready for image generation. Do not include explanations or headings.\n\nCreative brief: {a}"
       }
     },
     {
@@ -207,7 +207,7 @@
         "Node name for S&R": "OpenRouterText"
       },
       "widgets_values": [
-        "香水の広告写真に使う、異なる撮影案を英語の画像生成プロンプトで提案してください。",
+        "Suggest distinct photographic concepts for a perfume advertisement as English image generation prompts.",
         "",
         "candidates",
         4,
@@ -219,7 +219,7 @@
         2048
       ],
       "widgets_values_named": {
-        "prompt": "香水の広告写真に使う、異なる撮影案を英語の画像生成プロンプトで提案してください。",
+        "prompt": "Suggest distinct photographic concepts for a perfume advertisement as English image generation prompts.",
         "system": "",
         "output_mode": "candidates",
         "output_mode.count": 4,
@@ -344,8 +344,8 @@
         "Node name for S&R": "JevInterpret"
       },
       "widgets_values": [
-        "高級感は欲しいが、冷たく威圧的にはしたくない。",
-        "制作意図との意味的な適合を比較して1案を選ぶ。単語の一致ではなく、光・素材・構図が与える印象を判断する。高級感だけでなく、親しみやすさと触れたくなる感覚を重視する。",
+        "I want a sense of luxury that feels warm and approachable.",
+        "Choose the concept that best fits the creative intent. Judge the impression created by lighting, materials, and composition rather than matching keywords. Consider approachability and tactile appeal as well as a sense of luxury.",
         "choice",
         "jev-latest",
         "openrouter",
@@ -355,8 +355,8 @@
         0.5
       ],
       "widgets_values_named": {
-        "state": "高級感は欲しいが、冷たく威圧的にはしたくない。",
-        "instructions": "制作意図との意味的な適合を比較して1案を選ぶ。単語の一致ではなく、光・素材・構図が与える印象を判断する。高級感だけでなく、親しみやすさと触れたくなる感覚を重視する。",
+        "state": "I want a sense of luxury that feels warm and approachable.",
+        "instructions": "Choose the concept that best fits the creative intent. Judge the impression created by lighting, materials, and composition rather than matching keywords. Consider approachability and tactile appeal as well as a sense of luxury.",
         "task": "choice",
         "model": "jev-latest",
         "provider": "openrouter",

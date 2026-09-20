@@ -13,6 +13,36 @@ from .semantics import candidate_strings, dumps, loads
 ENDPOINT = "https://api.typesafe.ai/v1/systemone"
 OPENROUTER_ENDPOINT = "https://openrouter.ai/api/alpha/decisions"
 CHAT_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
+MODELS_ENDPOINT = "https://openrouter.ai/api/v1/models"
+
+
+async def list_text_models():
+    try:
+        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:
+            async with session.get(MODELS_ENDPOINT, allow_redirects=False) as response:
+                if response.status != 200:
+                    raise RuntimeError(f"OpenRouter model catalog HTTP {response.status}")
+                catalog = loads(await response.text(), "OpenRouter model catalog")
+    except asyncio.TimeoutError:
+        raise RuntimeError("OpenRouter model catalog request timed out after 10 seconds") from None
+    except aiohttp.ClientError as error:
+        raise RuntimeError(f"OpenRouter model catalog connection failed ({type(error).__name__})") from None
+    if not isinstance(catalog, dict) or not isinstance(catalog.get("data"), list):
+        raise ValueError("OpenRouter model catalog must contain a data array")
+    model_ids = set()
+    for model in catalog["data"]:
+        if not isinstance(model, dict):
+            continue
+        model_id = model.get("id")
+        architecture = model.get("architecture")
+        if not isinstance(model_id, str) or not model_id.strip() or model_id == "custom" or not isinstance(architecture, dict):
+            continue
+        if ("text" in (architecture.get("input_modalities") or [])
+                and "text" in (architecture.get("output_modalities") or [])):
+            model_ids.add(model_id)
+    if not model_ids:
+        raise ValueError("OpenRouter model catalog contains no text models")
+    return tuple(sorted(model_ids))
 
 
 def connection(provider, model):
