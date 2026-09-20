@@ -1,0 +1,46 @@
+{
+  "1": {
+    "class_type": "PrimitiveStringMultiline",
+    "inputs": {
+      "value": "Write an image generation prompt and a short caption for a warm, approachable perfume advertisement."
+    }
+  },
+  "2": {
+    "class_type": "JevSkillChoice",
+    "inputs": {
+      "prompt": [
+        "1",
+        0
+      ],
+      "directory": "automatic",
+      "instructions": "Select skills that directly help with the requested work. Check each skill's purpose and prerequisites.",
+      "model": "jev-latest",
+      "provider": "openrouter",
+      "api_key": "",
+      "refresh": 0,
+      "max_selections": 2,
+      "strength_mode": "automatic",
+      "shortlist_size": 5,
+      "threshold": 0.5,
+      "gate_threshold": 0.3
+    }
+  },
+  "3": {
+    "class_type": "PreviewAny",
+    "inputs": {
+      "source": [
+        "2",
+        0
+      ]
+    }
+  },
+  "4": {
+    "class_type": "PreviewAny",
+    "inputs": {
+      "source": [
+        "2",
+        1
+      ]
+    }
+  }
+}

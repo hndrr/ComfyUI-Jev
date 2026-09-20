@@ -33,6 +33,9 @@ class Server:
 
 class ExecutionTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
+        catalog = patch.object(n.model_catalog, "model_ids", ("openai/gpt-4.1-mini", "openai/gpt-4.1"))
+        catalog.start()
+        self.addCleanup(catalog.stop)
         self.saved_nodes = dict(nodes.NODE_CLASS_MAPPINGS)
         for extension in (n.JevExtension(), PrimitivesExtension(), StringExtension(), LogicExtension(), NumberConvertExtension(), MathExtension()):
             for cls in await extension.get_node_list():
