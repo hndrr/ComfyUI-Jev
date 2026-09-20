@@ -1,4 +1,4 @@
-# ComfyUI-Jev
+# [WORK IN PROGRESS] ComfyUI-Jev
 
 文章から制作案を生成し、Jevで意図に合う案を選んで、既存のComfyUIワークフローへ渡すカスタムノードです。
 
