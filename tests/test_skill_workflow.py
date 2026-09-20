@@ -1,12 +1,10 @@
-"""Exercise the installed Skill Loader and AgentRuntime with mocked paid providers."""
+"""Run Skill Choice through ComfyUI with local files and a mocked Jev API."""
 import copy
 import json
-import sys
 import tempfile
 import unittest
-from contextlib import ExitStack
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from test_jev import ROOT, api, n
 from test_suggestions import reply
@@ -17,16 +15,7 @@ from comfy_extras.nodes_preview_any import PreviewAny
 from comfy_extras.nodes_primitive import PrimitivesExtension
 from execution import PromptExecutor, validate_prompt
 
-PACKS = [ROOT.parent / 'ComfyUI-Skills-Loader', ROOT.parent / 'ComfyUI-AgentRuntime']
-AVAILABLE = all((path / '__init__.py').is_file() for path in PACKS)
-if AVAILABLE:
-    sys.path[:0] = [str(path) for path in PACKS]
-    from comfyui_skills import nodes as skill_nodes
-    from comfyui_agent_runtime import nodes as agent_nodes
-    from comfyui_agent_runtime.providers.base import AgentResult
 
-
-@unittest.skipUnless(AVAILABLE, 'Install Skill Loader and AgentRuntime to run integration tests')
 class SkillWorkflowTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         saved = dict(nodes.NODE_CLASS_MAPPINGS)
@@ -37,25 +26,21 @@ class SkillWorkflowTests(unittest.IsolatedAsyncioTestCase):
         for extension in (n.JevExtension(), PrimitivesExtension()):
             for cls in await extension.get_node_list():
                 nodes.NODE_CLASS_MAPPINGS[cls.GET_SCHEMA().node_id] = cls
-        nodes.NODE_CLASS_MAPPINGS.update(skill_nodes.NODE_CLASS_MAPPINGS)
-        nodes.NODE_CLASS_MAPPINGS['AgentRuntimeRun'] = agent_nodes.AgentRuntimeRun
         nodes.NODE_CLASS_MAPPINGS['PreviewAny'] = PreviewAny
-        self.stack = ExitStack()
-        self.addCleanup(self.stack.close)
-        self.directory = Path(self.stack.enter_context(tempfile.TemporaryDirectory()))
+        directory = tempfile.TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        self.directory = Path(directory.name).resolve()
         for name, description, body in [('copy', 'Write advertising copy', 'COPY GUIDANCE'),
                                          ('music', 'Arrange background music', 'MUSIC GUIDANCE'),
                                          ('review', 'Review generated images', 'REVIEW GUIDANCE')]:
             path = self.directory / name / 'SKILL.md'
             path.parent.mkdir()
             path.write_text(f'---\nname: {name}\ndescription: {description}\n---\n{body}\n')
-        self.graph = json.loads((ROOT / 'examples/04_skill_suggestion.api.json').read_text())
+        self.graph = json.loads((ROOT / 'examples/04_skill_choice.api.json').read_text())
         self.graph['2']['inputs']['directory'] = str(self.directory)
-        self.provider = MagicMock()
-        self.provider.is_available.return_value = True
-        self.provider.run.return_value = AgentResult('codex', 'Finished production text', 'mock response')
-        self.stack.enter_context(patch.object(agent_nodes, 'get_provider', return_value=self.provider))
-        self.transport = self.stack.enter_context(patch.object(api, 'evaluate', side_effect=self.evaluate))
+        patcher = patch.object(api, 'evaluate', side_effect=self.evaluate)
+        self.transport = patcher.start()
+        self.addCleanup(patcher.stop)
         self.executor = PromptExecutor(Server(), cache_type=False, cache_args={'ram': 0, 'ram_inactive': 0})
 
     async def evaluate(self, state, questions, model, **kwargs):
@@ -74,9 +59,8 @@ class SkillWorkflowTests(unittest.IsolatedAsyncioTestCase):
             if 'fits_' + key in questions:
                 relevant = any(name in state.lower() and name in json.dumps(choices[key]).lower() for name in ('copy', 'music'))
                 result['answers']['fits_' + key]['noul'] = 0.9 if relevant else 0.1
-                if 'applicability_' + key in questions:
-                    score = 3.6 if key == winner else 1.2 if relevant else 0
-                    result['answers']['applicability_' + key] = reply(questions, scores={key: score})['answers']['applicability_' + key]
+                score = 3.6 if key == winner else 1.2 if relevant else 0
+                result['answers']['applicability_' + key] = reply(questions, scores={key: score})['answers']['applicability_' + key]
         return result
 
     async def run_graph(self, prompt):
@@ -87,65 +71,76 @@ class SkillWorkflowTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(details)
         await self.executor.execute_async(graph, 'skills', execute_outputs=outputs)
         self.assertTrue(self.executor.success, self.executor.status_messages)
-        return self.provider.run.call_args.args[0]
+        output = (await self.executor.caches.outputs.get('2')).outputs
+        return output[0][0], output[1][0]
 
-    async def test_prompt_routes_real_skill_bodies_into_agent_runtime(self):
-        request = await self.run_graph('Write advertising copy')
-        self.assertIn('<task>\nWrite advertising copy\n</task>', request.prompt)
-        self.assertIn('COPY GUIDANCE', request.prompt)
-        self.assertIn(str(self.directory / 'copy/SKILL.md'), request.prompt)
-        self.assertNotIn('MUSIC GUIDANCE', request.prompt)
+    async def test_reads_files_and_updates_cached_results(self):
+        text, bundle = await self.run_graph('Write advertising copy')
+        self.assertIn('COPY GUIDANCE', text)
+        self.assertNotIn('MUSIC GUIDANCE', text)
+        self.assertEqual(bundle['skills'][0]['path'], str(self.directory / 'copy/SKILL.md'))
+        self.assertEqual((await self.executor.caches.outputs.get('3')).outputs[0][0], text)
         self.assertEqual(self.transport.await_count, 2)
-        self.assertEqual((await self.executor.caches.outputs.get('5')).outputs[0][0], 'Finished production text')
-        self.graph['5']['inputs']['instruction'] += ' Keep it short.'
         await self.run_graph('Write advertising copy')
         self.assertEqual(self.transport.await_count, 2)
-        request = await self.run_graph('Arrange background music')
-        self.assertIn('MUSIC GUIDANCE', request.prompt)
-        self.assertNotIn('COPY GUIDANCE', request.prompt)
+        text, _ = await self.run_graph('Arrange background music')
+        self.assertIn('MUSIC GUIDANCE', text)
+        self.assertNotIn('COPY GUIDANCE', text)
         self.assertEqual(self.transport.await_count, 4)
         path = self.directory / 'music/SKILL.md'
         path.write_text(path.read_text() + 'NEW DIRECTION\n')
-        request = await self.run_graph('Arrange background music')
-        self.assertIn('NEW DIRECTION', request.prompt)
+        text, _ = await self.run_graph('Arrange background music')
+        self.assertIn('NEW DIRECTION', text)
         self.assertEqual(self.transport.await_count, 6)
+        self.graph['2']['inputs']['refresh'] = 1
+        await self.run_graph('Arrange background music')
+        self.assertEqual(self.transport.await_count, 8)
 
-    async def test_no_skill_is_a_working_empty_stack(self):
-        request = await self.run_graph('2 + 2?')
-        self.assertEqual(request.prompt, '2 + 2?')
+    async def test_no_skill_reaches_preview_as_empty_output(self):
+        text, bundle = await self.run_graph('2 + 2?')
+        self.assertEqual(text, '')
+        self.assertEqual(bundle, {'skills': []})
         self.assertEqual(self.transport.await_count, 1)
-        self.assertEqual((await self.executor.caches.outputs.get('4')).outputs[1][0], {'skills': []})
 
-    async def test_prompt_changes_individual_strengths_in_actual_agent_request(self):
-        request = await self.run_graph('Write copy with background music')
-        self.assertIn('<agent_skill strength="1.8" direction="apply">\n<name>copy</name>', request.prompt)
-        self.assertIn('<agent_skill strength="0.6" direction="apply">\n<name>music</name>', request.prompt)
-        self.assertNotIn('REVIEW GUIDANCE', request.prompt)
-        self.assertIn('<task>\nWrite copy with background music\n</task>', request.prompt)
-        bundle = (await self.executor.caches.outputs.get('4')).outputs[1][0]
+    async def test_prompt_changes_individual_strengths(self):
+        text, bundle = await self.run_graph('Write copy with background music')
+        self.assertIn('Application priority: 1.8', text)
+        self.assertIn('Application priority: 0.6', text)
+        self.assertNotIn('REVIEW GUIDANCE', text)
         self.assertEqual([(item['name'], item['strength']) for item in bundle['skills']], [('copy', 1.8), ('music', 0.6)])
         self.assertEqual(self.transport.await_count, 2)
         await self.run_graph('Write copy with background music')
         self.assertEqual(self.transport.await_count, 2)
-        request = await self.run_graph('Arrange music with copy')
-        self.assertIn('<agent_skill strength="1.8" direction="apply">\n<name>music</name>', request.prompt)
-        self.assertIn('<agent_skill strength="0.6" direction="apply">\n<name>copy</name>', request.prompt)
+        _, bundle = await self.run_graph('Arrange music with copy')
+        self.assertEqual([(item['name'], item['strength']) for item in bundle['skills']], [('music', 1.8), ('copy', 0.6)])
         self.assertEqual(self.transport.await_count, 4)
 
-    async def test_saved_workflow_links_and_no_renamed_titles(self):
-        workflow = json.loads((ROOT / 'examples/04_skill_suggestion.workflow.json').read_text())
-        graph = json.loads((ROOT / 'examples/04_skill_suggestion.api.json').read_text())
+    def test_saved_workflow_matches_node_inputs_and_links(self):
+        workflow = json.loads((ROOT / 'examples/04_skill_choice.workflow.json').read_text())
+        graph = json.loads((ROOT / 'examples/04_skill_choice.api.json').read_text())
         links = {link[0]: link for link in workflow['links']}
-        self.assertEqual(len(workflow['nodes']), len(graph))
+        by_id = {node['id']: node for node in workflow['nodes']}
         for node in workflow['nodes']:
             self.assertNotIn('title', node)
             expected = graph[str(node['id'])]
             self.assertEqual(node['type'], expected['class_type'])
-            slots = {slot['name']: slot for slot in node['inputs']}
             for name, value in expected['inputs'].items():
                 if isinstance(value, list):
-                    link = links[slots[name]['link']]
+                    slot = next(slot for slot in node['inputs'] if slot['name'] == name)
+                    link = links[slot['link']]
                     self.assertEqual([str(link[1]), link[2]], value)
                     self.assertEqual(link[3], node['id'])
+                    self.assertIn(link[0], by_id[link[1]]['outputs'][link[2]]['links'])
+                    self.assertEqual(node['inputs'][link[4]]['name'], name)
                 else:
                     self.assertEqual(node['widgets_values_named'][name], value)
+        node = by_id[2]
+        schema = n.JevSkillChoice.INPUT_TYPES()
+        self.assertEqual(schema['required']['directory'][1]['default'], '~/.claude/skills')
+        self.assertEqual(node['widgets_values_named']['directory'], '~/.claude/skills')
+        names = list(schema['required']) + list(schema['optional'])
+        self.assertEqual([slot['name'] for slot in node['inputs']], names)
+        widget_names = names[:names.index('refresh') + 1] + ['control_after_generate'] + names[names.index('refresh') + 1:]
+        self.assertEqual(node['widgets_values'], [node['widgets_values_named'][name] for name in widget_names])
+        self.assertEqual(node['widgets_values_named']['api_key'], '')
+        self.assertEqual(node['widgets_values_named']['control_after_generate'], 'fixed')

@@ -1,8 +1,10 @@
 # [WORK IN PROGRESS] ComfyUI-Jev
 
-文章から制作案を生成し、Jevで意図に合う案を選んで、既存のComfyUIワークフローへ渡すカスタムノードです。
+English | [日本語](README.ja.md)
 
-このパッケージのノードは **OpenRouter Text** と **Jev Interpret** の2つです。文章の結合・数値変換・分岐・画像生成は標準ノードを使います。スキーマや候補IDを手で書く必要はありません。
+Custom nodes that generate creative options from text, use Jev to select the best match for your intent, and pass the result into an existing ComfyUI workflow.
+
+This package provides **OpenRouter Text** for text generation, **Jev Interpret** for judgments, and **Jev Skill Choice** for selecting local Skills. Use standard nodes for text formatting, number conversion, branching, and image generation. You do not need to write schemas or candidate IDs by hand.
 
 ```text
 Text → Format Text → OpenRouter Text (candidates)
@@ -10,134 +12,155 @@ Text → Format Text → OpenRouter Text (candidates)
                                Jev Interpret → CLIP Text Encode → KSampler → VAE Decode → Save Image
 ```
 
-OpenRouterの文章生成モデルが異なる制作案を出し、Jevが判断指示に沿って比較します。たとえば「上質だが冷たくない、手に取る日常を想像できる広告写真」という意図に、候補の光・素材・構図が合うかを判断します。
+An OpenRouter text model generates different creative options, and Jev compares them using your judgment instructions. For example, it can assess whether each option's lighting, materials, and composition fit a brief for a refined but approachable product photograph that feels part of everyday life.
 
-## 導入とAPIキー
+The documentation and example workflows use English by default. Japanese documentation is available in [README.ja.md](README.ja.md).
 
-ComfyUI v0.36.0のV3 APIを使用します。このディレクトリを`custom_nodes/ComfyUI-Jev`へ配置し、ComfyUIを再起動してください。独自JavaScriptや追加の依存ライブラリはありません。
+## Installation and API keys
 
-OpenRouterを使う場合は、ComfyUIを起動する環境にキーを設定します。
+This package uses the ComfyUI v0.36.0 V3 API. Place this directory at `custom_nodes/ComfyUI-Jev` and restart ComfyUI. No custom JavaScript or additional dependencies are required.
+
+To use OpenRouter, set the key in the environment that starts ComfyUI:
 
 ```sh
 export OPENROUTER_API_KEY="your-key"
 ```
 
-`Jev Interpret`の`provider`を`openrouter`にすると、両ノードでこの環境変数を共有します。各ノードの`api_key`欄へ直接入力しても使えます。直接入力が優先され、空欄なら環境変数を読みます。標準のTextノードから両方の`api_key`入力へ同じキーを接続することもできます。
+Set `provider` to `openrouter` in **Jev Interpret** or **Jev Skill Choice** to use the same environment variable as **OpenRouter Text**. You can also enter a key directly in each node's `api_key` field. An explicit key takes precedence; an empty field uses the environment variable. A standard Text node can supply the same key to both `api_key` inputs.
 
-TypeSafeへ直接問い合わせる場合は`Jev Interpret`の`provider`を`typesafe`にし、`TYPESAFE_API_KEY`を設定します。OpenRouter Textは常にOpenRouterを使います。
+To query TypeSafe directly, set **Jev Interpret**'s `provider` to `typesafe` and set `TYPESAFE_API_KEY`. **OpenRouter Text** always uses OpenRouter.
 
-直接入力したキーはワークフロー・実行履歴にも保存されます。共有する場合はキーを消してください。環境変数を設定した後はComfyUIの再起動が必要です。
+Keys entered directly are saved in workflows and execution history. Remove them before sharing. Restart ComfyUI after setting environment variables.
 
 ## OpenRouter Text
 
-普通の文章生成にも、Jevへ渡す候補生成にも使えます。
+Use this node for general text generation or to generate candidates for Jev.
 
-| 入力 | 内容 |
+| Input | Description |
 | --- | --- |
-| `prompt` | 自然文の生成指示。標準TextやFormat Textからも接続可能 |
-| `system` | 任意の追加指示。空欄でも利用可能 |
-| `output_mode = text` | 通常の文章生成。出力`text`をそのまま既存のSTRING入力へ接続 |
-| `output_mode = candidates` | `count`個の異なる候補を生成。出力`text`をJev Interpretの`candidates_json`へ接続 |
-| `model` | 既定は`openai/gpt-4.1-mini`。`openai/gpt-4.1`または`custom`で任意IDを指定 |
-| `api_key` | 空欄なら`OPENROUTER_API_KEY` |
-| `refresh` | 固定値。変更すると再生成 |
-| `temperature` / `max_tokens` | 詳細設定。生成のばらつき・最大出力トークン数 |
+| `prompt` | Natural-language generation instructions. Accepts connections from standard Text or Format Text nodes. |
+| `system` | Optional additional instructions. Can be empty. |
+| `output_mode = text` | General text generation. Connect the `text` output to any existing STRING input. |
+| `output_mode = candidates` | Generate `count` distinct candidates. Connect `text` to Jev Interpret's `candidates_json`. |
+| `model` | Select a text model from the OpenRouter catalog, or use `custom` to enter a model ID. |
+| `api_key` | Uses `OPENROUTER_API_KEY` when empty. |
+| `refresh` | Keep fixed to reuse results. Change it to regenerate. |
+| `temperature` / `max_tokens` | Advanced settings for generation variability and the output token limit. |
 
-候補モードではノード内部でStructured Outputsを指定し、候補の配列をSTRINGとして出力します。**1行1候補という制約はありません。** 各候補の改行・段落・空白を保ちます。候補数の不一致、重複、空の候補、途中で終了した応答は明示的なエラーにします。
+The model list comes from [OpenRouter's model catalog](https://openrouter.ai/docs/api/api-reference/models/list-all-models-and-their-properties) when ComfyUI starts. Listing models requires no API key. If fetching fails, the last saved list is used; if no list has been saved, enter an ID with `custom`. Restart ComfyUI to update the list.
 
-候補モードにはStructured Outputs対応のモデルが必要です。`custom`でも対応モデルを指定してください。通常の`text`モードではStructured Outputsを要求しません。出力`response_json`にはモデル名・使用量を含む元のAPI応答が入ります。
+Candidate mode requests Structured Outputs internally and returns an array of candidates as a STRING. **Candidates do not need to fit on one line.** Line breaks, paragraphs, and whitespace within each candidate are preserved. A mismatched candidate count, duplicates, empty candidates, or a truncated response produces an explicit error.
+
+Candidate mode requires a model that supports Structured Outputs, including when using `custom`. Regular `text` mode does not request Structured Outputs. The `response_json` output contains the original API response, including the model name and usage.
 
 ## Jev Interpret
 
-`state`に判断対象や制作意図、`instructions`に判断指示を書きます。候補は次のどちらでも渡せます。
+Put the text to evaluate or your creative intent in `state`, and the judgment instructions in `instructions`. The `choice`, `multi_choice`, `score`, and `suggest` tasks accept candidates in either of these ways:
 
-- **自動生成**：OpenRouter Textの`output_mode`を`candidates`にして、`text`を`candidates_json`へ接続。
-- **手持ちの案**：標準TextノードなどのSTRINGを、Autogrowの`candidates.candidate0`以降へ接続。1接続が1候補で、複数行でもそのまま扱います。
+- **Generated candidates:** Set OpenRouter Text's `output_mode` to `candidates` and connect `text` to `candidates_json`.
+- **Existing options:** Connect STRING outputs from standard Text nodes or similar nodes to the Autogrow inputs, starting with `candidates.candidate0`. Each connection is one candidate, including multiline text.
 
-両方を接続した場合は、個別接続の候補を接続番号順、その後に生成候補を並べます。候補の名前やスキーマの記述は不要です。
+When both are connected, individually connected candidates come first in input-number order, followed by the generated candidates. No candidate names or schemas are required.
 
-| `task` | 判断と出力`result` |
+| `task` | Judgment and `result` output |
 | --- | --- |
-| `choice` | 候補から1つ選び、その候補の全文をそのままSTRING出力。CLIP Text Encodeなどへ直結可能 |
-| `multi_choice` | 各候補をNoulで独立判定し、該当した候補を定義順のJSON配列として出力 |
-| `boolean` | 指示した条件への該当をNoulで判定し、`true` / `false`を文字列で出力 |
-| `score` | 候補入力を「低い→高い」の評価段階として使用。Scoreを0〜1へ正規化した数値文字列を出力 |
-| `extract` | 原文の数値候補を位置・周辺文脈とともにChoiceへ渡し、選ばれた元の文字列を出力。候補なし・該当なしはエラー |
-| `suggest` | 説明で順位付けし、上位候補の本文を再判定。適合した候補の値をJSON配列で出力。該当なしは`[]` |
+| `choice` | Select one candidate and return its complete text unchanged as a STRING. Connect directly to CLIP Text Encode or similar nodes. |
+| `multi_choice` | Evaluate each candidate independently and return matching candidates as a JSON array in their original order. |
+| `boolean` | Evaluate whether the specified condition is met, returning the string `true` or `false`. No candidates are needed. |
+| `score` | Supply at least two candidates as an ordered scale from low to high. Return a numeric string from 0 to 1. |
+| `extract` | Select a number from `state` that answers the instructions and return its original text. No candidate inputs are needed. No match produces an error. |
+| `suggest` | Rank candidates by description, then evaluate the full content of the shortlist. Return matching candidate values as a JSON array, or `[]` when none fit. |
 
-booleanとmulti_choiceの`threshold`は既定0.5、比較は`>=`です。詳細設定から変更できます。scoreのconfidenceを評価値へ混ぜません。数値が必要なら標準のConvert Number、真偽による分岐にはCompare TextとSwitchなどを使います。
+For `boolean` and `multi_choice`, `threshold` defaults to 0.5 and uses a `>=` comparison. Change it in the advanced settings. Score confidence is not mixed into the evaluation value. Use standard Convert Number nodes when you need a number, or Compare Text and Switch nodes for conditional branching.
 
-出力は`result`（STRING）、`details`（DICT、判定の詳細）、`response_json`（STRING、生のAPI応答）です。JSON形式の解析結果も、必要ならstateへ文字列として渡せます。画像・音声・動画を直接Jevへ送るノードではありません。
+Outputs are `result` (STRING), `details` (DICT containing judgment details), and `response_json` (STRING containing the raw API response). You can also pass JSON analysis results to `state` as text. This node does not send images, audio, or video directly to Jev.
 
-Jevモデルは既定`jev-latest`。TypeSafeでは`jev-preview`、`jev-1.13.0`、任意IDにも対応します。OpenRouterでは`jev-latest`を`~typesafe/jev-latest`、`jev-1.13.0`を`typesafe/jev-1.13`として送信します。`jev-preview`は未対応です。任意IDは`custom`で指定します。
+The default Jev model is `jev-latest`. TypeSafe also supports `jev-preview`, `jev-1.13.0`, and custom IDs. With OpenRouter, `jev-latest` is sent as `~typesafe/jev-latest` and `jev-1.13.0` as `typesafe/jev-1.13`. OpenRouter does not support `jev-preview`. Select `custom` to specify another ID.
 
-## 実際に画像生成するサンプル
+## Image generation examples
 
-`examples/*.workflow.json`をComfyUIへ読み込んでください。同名の`.api.json`も同梱しています。以下の3例は標準のCheckpoint Loader、CLIP Text Encode、Empty Latent Image、KSampler、VAE Decode、Save Imageまで接続済みです。ノードタイトルの独自変更はありません。
+Load an `examples/*.workflow.json` file into ComfyUI. A matching `.api.json` file is included for each example. The following three examples are connected through the standard Checkpoint Loader, CLIP Text Encode, Empty Latent Image, KSampler, VAE Decode, and Save Image nodes.
 
-1. **[01_generate_and_select.workflow.json](examples/01_generate_and_select.workflow.json)** — 制作意図から撮影プロンプトを4案生成し、Jevが選んだ案で画像を生成します。最初に使う例です。
-2. **[02_manual_candidates.workflow.json](examples/02_manual_candidates.workflow.json)** — 手持ちの複数行プロンプトを標準Textノードから渡し、Jevで選択。文章生成APIは使いません。
-3. **[03_select_and_expand.workflow.json](examples/03_select_and_expand.workflow.json)** — 撮影コンセプトを生成・選択してから、OpenRouter Textの通常モードで具体的な画像プロンプトへ展開します。
+1. **[01_generate_and_select.workflow.json](examples/01_generate_and_select.workflow.json)** — Generate four photographic prompts from a creative brief, let Jev choose one, and generate an image. Start here.
+2. **[02_manual_candidates.workflow.json](examples/02_manual_candidates.workflow.json)** — Supply existing multiline prompts through standard Text nodes and let Jev select one. Does not call a text generation API.
+3. **[03_select_and_expand.workflow.json](examples/03_select_and_expand.workflow.json)** — Generate and select a photographic concept, then expand it into a detailed image prompt using OpenRouter Text in regular text mode.
 
-実行前にCheckpoint Loaderの`YOUR_SD_OR_SDXL_CHECKPOINT.safetensors`を、インストール済みのSD 1.5 / SDXL系チェックポイントに変更してください。CLIP・VAEを含むモデルを想定しています。画像サイズ・seed・stepsなどは標準ノードで設定します。モデルのダウンロードは行いません。
+Before running, replace `YOUR_SD_OR_SDXL_CHECKPOINT.safetensors` in Checkpoint Loader with an installed SD 1.5 / SDXL checkpoint that includes CLIP and VAE. Set image size, seed, steps, and other generation settings in the standard nodes. The examples do not download models.
 
-従来のスキーマ手書き・縦横比判定の例と、Field / Resolve / Read / Inspect / Model Candidates / Rank / Weighted Scoreは削除しました。旧ワークフロー用の互換ノードは併設していません。
+## Candidate suggestions
 
-## AgentRuntimeのpromptに合うSkillを選ぶ
+Use `task = suggest` to find procedures or creative directions that help with the request in `state`. Supply the candidate text through `candidates` or `candidates_json` and describe what to look for in `instructions`.
 
-**[04_skill_suggestion.workflow.json](examples/04_skill_suggestion.workflow.json)** は、同じTextをJevの`state`とAgent Runtimeの`prompt`へ接続する実例です。READMEを読み、制作者が迷う説明を特定して差し替え文を作る依頼に対し、調査・文章作成のSkillを選び、それぞれの適用の強さも決めます。ComfyUI-Skills-LoaderとComfyUI-AgentRuntimeが必要です。
+Jev first checks whether specialized guidance is needed, then ranks candidates and evaluates the full text of the shortlist. It returns selected candidates as a JSON array in the STRING `result`. The result is `[]` when guidance is unnecessary or no candidate fits. Connect `result` to a standard Preview as Text node to inspect it. Use `choice` when you want to select one option without this need-for-guidance check.
 
-```text
-Skill Catalog → Jev Interpret (suggest) → Skill Stack Loader → Agent Runtime → Preview Any
-                    ↑                                            ↑
-                    └────────── Text (今回のprompt) ──────────────┘
+| Advanced setting | Default | Purpose |
+| --- | --- | --- |
+| `shortlist_size` | 3 | Number of candidates whose full text is evaluated. |
+| `max_selections` | 1 | Maximum number of candidates to return. |
+| `gate_threshold` | 0.3 | Minimum assessed need for specialized guidance before evaluating the shortlist. |
+| `threshold` | 0.5 | Minimum fit required for each selected candidate. |
+
+To separate a candidate's description from its output, connect a standard Text node containing a JSON array like this to `candidates_json`:
+
+```json
+[
+  {
+    "description": "Soft daylight for a warm, tactile product photograph",
+    "content": "Place the bottle on natural linen beside a window. Use diffused side light and keep the background simple.",
+    "value": "Amber perfume bottle on natural linen, soft window light, warm neutral tones"
+  },
+  {
+    "description": "Hard studio light for a dramatic, sculptural product photograph",
+    "content": "Place the bottle on dark stone. Use a narrow side light to emphasize its silhouette and reflections.",
+    "value": "Perfume bottle on dark stone, hard side lighting, deep shadows, sculptural composition"
+  }
+]
 ```
 
-1. **Skill Catalog**の`directory`を指定します。サンプルはSkill Loader同梱のSkill集を使用します。`~/.agents/skills`、`~/.codex/skills`や任意のフォルダーへ変更できます。配下の`SKILL.md`から候補を作るので、候補やスキーマを書く必要はありません。
-2. **Jev Interpret**の`task = suggest`で、そのpromptに役立つSkillを選びます。サンプルは`skill_strength = automatic`、`max_selections = 3`、`shortlist_size = 5`です。結果は実在する元パスと個別の`strength`を含む配列です。パスをモデルに生成させません。
-3. **Skill Stack Loader**が選ばれたSkillを読み、本文・元パス・`strength`を**Agent Runtime**の`skill`へ渡します。該当なしの`[]`でも実行でき、元のpromptはそのまま届きます。
+Use `description` for the short description, `content` for the full text to evaluate, and `value` for the text or JSON value to return. If `content` is omitted, Jev uses `description`. With the default settings, selected values are returned unchanged inside a JSON array. To evaluate a file's contents, supply the contents as text.
 
-サンプルのAgent Runtimeは`codex`です。使用するCLIの認証と`cwd`を設定し、必要ならprovider・model・instruction presetを変更してください。実行するとJev APIとAgentRuntimeのプロバイダーが呼ばれます。OpenRouter Textはこの例では使いません。
+The `choice` and `multi_choice` tasks also accept these records. They compare `description` and return the selected `value` or values.
 
-[Skill suggestion Cookbook](https://docs.typesafe.ai/cookbooks/skill_suggestion)を基に、次の2段階で判断します。
+## Jev Skill Choice
 
-- 1回目：全候補の説明をChoiceで比較し、同時に3つのNoulで専門的な手順・制作上の指針が必要かを確認します。不要ならここで終了します。
-- 2回目：上位候補の説明と本文を渡し、候補ごとのNoulで具体的な適合を確認します。`skill_strength = preserve`ではChoiceで比較し直し、`automatic`では候補ごとのScoreで今回の依頼における役割の大きさを評価します。候補本文の指示を実行する段階ではありません。
+Select installed Claude Skills for a request. Enter the request in `prompt`; the node reads `~/.claude/skills` by default, selects relevant Skills, and outputs their complete contents with application priorities. Change `directory` to use another location.
 
-詳細設定の`shortlist_size`は既定3、`max_selections`は既定1です。複数のSkillを組み合わせる場合は`max_selections`を増やします。`gate_threshold`は専門的な指針の必要性（既定0.3）、`threshold`は各候補の適合（既定0.5）のしきい値です。confidenceを適合度として扱いません。
+[04_skill_choice.workflow.json](examples/04_skill_choice.workflow.json) selects from `~/.claude/skills` and shows the selected text and data with standard Preview as Text nodes.
 
-制作向けに、文章だけの成果物でも固有の作風や手順が役立つかを確認する質問へ調整しています。各候補自身が適合基準を満たさなければ採用しません。`preserve`で1件だけ選ぶ場合は、Choiceが選んだ候補の適合が足りなければ該当なしになります。説明・本文は文字数で切り詰めず、1回目は説明、2回目は上位候補の全文だけを送ります。descriptionがないSkillは本文を説明にも使います。
+```text
+Text → Jev Skill Choice → Preview as Text
+          ↑
+     ~/.claude/skills
+```
 
-候補の内部形式は`description`・`content`・`value`を持つJSON配列です。Skill Catalogがこれを生成し、Jevは選択した`value`をコピーします。`automatic`の場合だけ、コピーした値の`strength`を判定結果で上書きします。他のカタログには既定の`preserve`を使えます。既存の`choice`・`multi_choice`でも説明と出力値を分けた候補を利用できます。
+| Input | Purpose |
+| --- | --- |
+| `directory` | Defaults to `~/.claude/skills`. Searches recursively for `SKILL.md`, including linked Skill directories. Relative paths start at the ComfyUI directory. |
+| `prompt` | The work for which Skills should be selected. |
+| `instructions` | Selection criteria. Defaults to checking usefulness and prerequisites. |
+| `max_selections` | Maximum number of selected Skills; default 3. |
+| `strength_mode` | `automatic` scores each Skill's role from 0 to 2 and omits zero scores. `uniform` assigns 1 to every selected Skill. |
+| `shortlist_size` | Maximum number of Skills whose full contents are evaluated; default 5. |
+| `threshold` / `gate_threshold` | Minimum fit and need for specialized guidance; defaults 0.5 and 0.3. |
 
-### プロンプトによるSkillの適用度
+Set `provider`, `model`, and `api_key` as for Jev Interpret. Skill descriptions and shortlisted file contents are sent to the selected API along with the prompt. The node reads each `SKILL.md`; referenced files and scripts are outside its loading scope.
 
-`Jev Interpret`の詳細設定で`skill_strength = automatic`にすると、候補ごとに「使わない／任意の細部を補助／一部分に通常適用／主要部分を導く／成果物の主軸」という5段階を[Score](https://docs.typesafe.ai/primitives/score)で評価し、0〜2の`strength`へ線形変換します。段階の中間値もそのまま使います。評価基準はノード内部にあるので、手書きスキーマは不要です。
+YAML front matter can provide `name` and `description`. Without them, the directory name and file contents are used. Changes to the files, including additions and removals, trigger a new selection on the next run. Change `refresh` to request another selection with the same inputs.
 
-たとえば「調査を主軸に、説明は短く」なら調査用Skillに1.8、文章用Skillに0.6という組み合わせを返せます。これは出力形式の例で、実際の値はプロンプトと候補内容によって変わります。
+Outputs are `text` (STRING containing the selected contents and priorities), `skills` (DICT containing a `skills` list of `name`, `path`, `description`, `content`, and `strength` records), `details` (DICT containing selection results), and `response_json` (STRING containing API responses). When no Skill is suitable, `text` is empty and `skills` is `{"skills": []}`.
 
-- 各Skillを独立に評価します。合計を1に揃える配分ではないため、複数のSkillを強く適用することもできます。
-- Noulの適合しきい値を満たし、Scoreが0より大きい候補から、適用度順で最大`max_selections`件を選びます。同点は元の候補順です。評価対象は`shortlist_size`件までなので、組み合わせたい候補が多いときは増やしてください。
-- 不適合・適用度0はStackへ渡しません。負のstrengthは自動生成しません。confidenceやNoulの確率をstrengthへ掛け合わせません。
-- Scoreは2回目のリクエストへまとめるため、問い合わせの往復は通常と同じ最大2回です。質問が増える分のトークンは使います。
-- `preserve`は元のstrengthを保ちます。既存ワークフローで未設定の場合も`preserve`です。
+Connect `text` to OpenRouter Text's `system` input to use the selected guidance for generation, and supply the generation request separately to `prompt`. Priorities express how strongly to apply the guidance; they do not change model weights.
 
-strengthは**エージェントに渡す適用の強さ・優先度の指示**です。Skill Stack LoaderとAgentRuntimeの既存の仕組みを使用し、モデル内部の数値重みを制御するものではありません。`details`には候補ごとの`applicability`（0〜1）と採用した`strengths`が入ります。
+## Caching, errors, and tests
 
-Skillの追加・削除・本文変更はCatalogのキャッシュへ反映します。AgentRuntime側の設定だけを変えた場合、Jevの判定は再利用されます。判定はQueue時に行います。
+The nodes use ComfyUI's cache. Changing only the image generation seed, width, or height does not trigger another text generation or Jev request. Changing only Jev's judgment instructions can reuse previously generated candidates. Change a node's `refresh` to request a new result from that node on the next run.
 
-## キャッシュ・エラー・検証
-
-ComfyUIのキャッシュを使用します。画像生成側のseed・幅・高さだけの変更では、文章生成もJevの問い合わせも増えません。Jevの判断指示だけを変えた場合は、生成済み候補を再利用できます。それぞれの`refresh`を変更すると、そのノードから再実行します。独自の永続キャッシュはありません。
-
-入力・モデル・キー・しきい値など、問い合わせノード自身の設定変更はキャッシュ更新の対象です。APIは1回60秒、429 / 529は`Retry-After`に従い最大2回再試行します。それ以外の失敗や不正な応答はエラーとして返します。
+Changes to a request node's own inputs, model, key, thresholds, or other settings invalidate its cached result. Each API request has a 60-second timeout. HTTP 429 / 529 responses are retried up to twice according to `Retry-After`. Other failures and malformed responses are returned as errors.
 
 ```sh
 ../../venv/bin/python -m unittest discover -s tests -v
 ```
 
-通常テストは有料APIを呼びません。モック応答から候補生成・選択・再利用を確認し、実際のComfyUI実行エンジンで標準ノードを通してSave Imageまで実行します。チェックポイント読込・学習済みモデルの計算はモックなので、画質や実APIでの判断精度を検証するテストではありません。
+The regular tests do not call paid APIs. They use mocked responses to verify candidate generation, selection, and reuse, and run through standard nodes to Save Image using the actual ComfyUI execution engine. Checkpoint loading and trained-model computation are mocked, so these tests do not evaluate image quality or real API judgment accuracy.
 
-Skill連携のテストは、隣接するSkill LoaderとAgentRuntimeの実装で、選ばれた本文・元パス・元のpromptがAgentRequestへ届くこと、該当なしでの実行、promptとSkill本文の変更を確認します。Jev APIとAgentのCLI実行はモックです。両パッケージがない環境では、この連携テストだけスキップします。
-
-API仕様: [TypeSafe](https://docs.typesafe.ai/introduction) / [OpenRouter Chat Completions](https://openrouter.ai/docs/api/api-reference/chat/create-a-chat-completion) / [Structured Outputs](https://openrouter.ai/docs/guides/features/structured-outputs)
+API references: [TypeSafe](https://docs.typesafe.ai/introduction) / [OpenRouter Chat Completions](https://openrouter.ai/docs/api/api-reference/chat/create-a-chat-completion) / [Structured Outputs](https://openrouter.ai/docs/guides/features/structured-outputs)
