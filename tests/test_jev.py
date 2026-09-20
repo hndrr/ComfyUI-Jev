@@ -1,5 +1,4 @@
 import asyncio
-import copy
 import importlib.util
 import json
 import os
@@ -38,6 +37,12 @@ def response_for(questions):
     return {"model": "jev-1.13.0", "answers": answers, "usage": {"input_tokens": 100, "output_tokens": 10}}
 
 
+def completion_for(content):
+    return {"model": "openai/gpt-4.1-mini", "choices": [
+        {"finish_reason": "stop", "message": {"role": "assistant", "content": content}},
+    ], "usage": {"prompt_tokens": 100, "completion_tokens": 100}}
+
+
 def judged(schema, state="a request"):
     questions, plans = s.compile_questions(state, schema)
     return s.collect_judgments(response_for(questions), plans)
@@ -61,20 +66,12 @@ class SemanticsTests(unittest.TestCase):
                     "motion": {"range": [10, 20]}, "duration": {"convert": "int"}}
         result, values = s.resolve(judgments, bindings)
         self.assertEqual(values, {"style": {"prompt": "soft light"}, "layers": ["cloth", "film"], "flag": 1, "motion": 15, "duration": 8})
-        self.assertEqual(s.read_value(result, "style", "/prompt", str), "soft light")
+        self.assertEqual(s.pointer(values, "/style/prompt"), "soft light")
         self.assertEqual(judgments["fields"]["duration"]["source"]["start"], 3)
 
-    def test_schema_builder_json_equivalence_and_duplicates(self):
-        builder = s.make_field("style", "Style?", "choice", "infer", "soft\nhard")
-        self.assertEqual(builder, s.merge_schemas([], s.dumps(builder)))
-        self.assertEqual(builder, s.make_field("style", "Style?", "choice", "infer", '{"soft":null,"hard":null}', "json"))
-        for operation in (lambda: s.merge_schemas([builder, builder]), lambda: s.loads('{"a":1,"a":2}'),
-                          lambda: s.make_field("x", "?", "choice", "infer", "same\nsame"), lambda: s.loads("NaN")):
-            with self.assertRaises(ValueError):
-                operation()
 
     def test_presence_threshold_default_and_null(self):
-        schema = s.make_field("grain", "Add grain?", "boolean", "explicit")
+        schema = {"grain": {"type": "boolean", "instructions": "Add grain?", "presence": "explicit"}}
         questions, plans = s.compile_questions("nothing specified", schema)
         response = response_for(questions)
         response["answers"]["f0_present"]["noul"] = 0.2
@@ -82,8 +79,6 @@ class SemanticsTests(unittest.TestCase):
         result, values = s.resolve(judgments, {})
         self.assertEqual(values, {})
         self.assertEqual(result["fields"]["grain"]["reason"], "not_explicit")
-        with self.assertRaisesRegex(ValueError, "unresolved"):
-            s.read_value(result, "grain", "", bool)
         result, values = s.resolve(judgments, {"grain": {"default": None}})
         self.assertEqual(values, {"grain": None})
         self.assertEqual(result["fields"]["grain"]["status"], "default")
@@ -91,7 +86,7 @@ class SemanticsTests(unittest.TestCase):
         self.assertTrue(values["grain"])
 
     def test_low_confidence_does_not_mean_low_score(self):
-        judgments = judged(s.make_field("motion", "?", "score", "infer", "Still\nMoving"))
+        judgments = judged({"motion": {"type": "score", "instructions": "?", "criteria": ["Still", "Moving"]}})
         self.assertEqual(s.resolve(judgments, {})[1]["motion"], 0.5)
         self.assertEqual(s.resolve(judgments, {"motion": {"min_confidence": 0.8, "default": 0.1}})[1]["motion"], 0.1)
 
@@ -119,13 +114,6 @@ class SemanticsTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 s._convert_extracted(text, kind, "x")
 
-    def test_strict_readers_and_pointer(self):
-        result = {"fields": {"x": {"status": "resolved", "value": {"a/b": {"~": [7.0, True]}}}}}
-        self.assertEqual(s.read_value(result, "x", "/a~1b/~0/0", int), 7)
-        self.assertEqual(s.read_value(result, "x", "/a~1b/~0/0", float), 7.0)
-        for path, expected in [("/a~1b/~0/1", int), ("/a~1b/~0/0", str), ("/missing", float), ("/a~2b", str)]:
-            with self.assertRaises(ValueError):
-                s.read_value(result, "x", path, expected)
 
     def test_bad_schema_and_response(self):
         for field in [{"type": "wrong", "instructions": "?"}, {"type": "score", "instructions": "?", "criteria": ["one"]},
@@ -133,7 +121,7 @@ class SemanticsTests(unittest.TestCase):
                       {"type": "boolean", "instructions": "?", "typo": 1}]:
             with self.assertRaises(ValueError):
                 s.validate_schema({"x": field})
-        questions, plans = s.compile_questions("text", s.make_field("x", "?", "choice", "infer", "a\nb"))
+        questions, plans = s.compile_questions("text", {"x": {"type": "choice", "instructions": "?", "criteria": {"a": None, "b": None}}})
         for answers in [{}, {"f0": {"type": "noul", "noul": 0.5}}]:
             with self.assertRaises(ValueError):
                 s.collect_judgments({"answers": answers}, plans)
@@ -142,16 +130,6 @@ class SemanticsTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "not a candidate"):
             s.collect_judgments(response, plans)
 
-    def test_ranking_and_weighted_scores(self):
-        judgments = judged({"a": {"type": "score", "instructions": "?", "criteria": ["low", "high"]},
-                            "b": {"type": "boolean", "instructions": "?"},
-                            "c": {"type": "score", "instructions": "?", "criteria": ["low", "medium", "high"]}})
-        self.assertEqual([r["id"] for r in s.rank(judgments, ["c", "b", "a"])], ["b", "c", "a"])
-        self.assertAlmostEqual(s.weighted_score(judgments, {"a": 1, "b": 3})[0], 0.725)
-        with self.assertRaises(ValueError):
-            s.weighted_score(judgments, {"a": 1, "b": -1})
-        with self.assertRaises(ValueError):
-            s.rank(judgments, [])
 
 
 class TransportTests(unittest.IsolatedAsyncioTestCase):
@@ -179,14 +157,9 @@ class TransportTests(unittest.IsolatedAsyncioTestCase):
             self.assertFalse(call.kwargs["allow_redirects"])
 
     async def test_openrouter_payload_and_judgments(self):
-        schema = {
-            "pick": {"type": "choice", "instructions": "Style?", "criteria": {"soft": None, "hard": None}},
-            "flag": {"type": "boolean", "instructions": "Grain?"},
-            "motion": {"type": "score", "instructions": "Motion?", "criteria": ["Still", "Strong"]},
-            "duration": {"type": "extract", "instructions": "Duration?"},
-        }
-        state = {"brief": "8 seconds"}
-        schema["duration"]["source"] = "/brief"
+        task = {"task": "choice", "candidates": {"candidate0": "soft\nwindow light", "candidate1": "hard sunlight"}}
+        state = "quiet portrait"
+        schema, _ = s.text_task("Choose lighting", task)
         questions, plans = s.compile_questions(state, schema)
         payload = response_for(questions)
         payload.update(model="typesafe/jev-1.13", provider="TypeSafe", id="mock-request")
@@ -203,16 +176,16 @@ class TransportTests(unittest.IsolatedAsyncioTestCase):
             os.environ, {"OPENROUTER_API_KEY": "router-secret", "TYPESAFE_API_KEY": "direct-secret"}, clear=True
         ):
             output = await n.JevInterpret.execute(
-                json.dumps(state), "json", {"model": "jev-latest"}, 0,
-                schema_json=json.dumps(schema), provider="openrouter", api_key="node-key",
+                state, "Choose lighting", "choice", {"model": "jev-latest"},
+                provider="openrouter", api_key="node-key", candidates=task["candidates"],
             )
         call = session.post.call_args
         self.assertEqual(call.args[0], "https://openrouter.ai/api/alpha/decisions")
         self.assertEqual(call.kwargs["json"], {"model": "~typesafe/jev-latest", "state": state, "questions": questions})
         self.assertEqual(call.kwargs["headers"]["Authorization"], "Bearer node-key")
         self.assertFalse(call.kwargs["allow_redirects"])
-        self.assertEqual(output.result[0], s.collect_judgments(payload, plans))
-        self.assertEqual(json.loads(output.result[1]), payload)
+        self.assertEqual(output.result[0], "soft\nwindow light")
+        self.assertEqual(json.loads(output.result[2]), payload)
 
     async def test_direct_key_precedence_and_blank_fallback(self):
         response = MagicMock(status=200)
@@ -271,36 +244,136 @@ class TransportTests(unittest.IsolatedAsyncioTestCase):
 
 
 class NodeTests(unittest.IsolatedAsyncioTestCase):
-    async def test_registration_and_schema(self):
+    async def test_two_nodes_and_native_types(self):
         classes = await (await package.comfy_entrypoint()).get_node_list()
-        self.assertEqual(len(classes), 11)
-        for cls in classes:
-            cls.INPUT_TYPES()
-            self.assertTrue(cls.RETURN_TYPES)
-        self.assertEqual(n.JevReadString.RETURN_TYPES, ["STRING", "COMBO"])
+        self.assertEqual(classes, [n.JevInterpret, n.OpenRouterText])
+        n.JevInterpret.INPUT_TYPES()
+        self.assertEqual(n.JevInterpret.RETURN_TYPES, ["STRING", "DICT", "STRING"])
+        n.OpenRouterText.INPUT_TYPES()
+        self.assertEqual(n.OpenRouterText.RETURN_TYPES, ["STRING", "STRING"])
 
-    async def test_autogrow_and_json_single_request(self):
-        field = n.JevField.execute("duration", "Length?", "infer", {"kind": "extract", "source": "", "extractor": {"extractor": "number"}}).result[0]
-        async def fake(state, questions, model, provider="typesafe", api_key=""):
-            self.assertEqual(len(questions), 2)
+    async def test_candidates_preserve_multiline_and_connection_order(self):
+        first = " A prompt with spaces\n\nSecond paragraph. "
+        task = {"task": "choice", "candidates": {"candidate1": "another", "candidate0": first},
+                "candidates_json": json.dumps(["generated\ncandidate"])}
+        async def fake(state, questions, model, **kwargs):
+            self.assertEqual(questions["f0"]["criteria"], {"c0": first, "c1": "another", "c2": "generated\ncandidate"})
             return response_for(questions)
-        with patch.object(api, "evaluate", side_effect=fake) as transport:
-            output = await n.JevInterpret.execute("8秒", "text", {"model": "jev-latest"}, 0,
-                                                  {"schema0": field}, '{"flag":{"type":"boolean","instructions":"Add grain?"}}')
-            resolved = n.JevResolve.execute(output.result[0], '{"duration":{"convert":"int"}}')
-            self.assertEqual(n.JevReadInt.execute(resolved.result[0], "duration").result, (8,))
-            n.JevResolve.execute(output.result[0], '{"duration":{"convert":"float"}}')
-            self.assertEqual(transport.await_count, 1)
+        with patch.object(api, "evaluate", side_effect=fake):
+            output = await n.JevInterpret.execute("brief", "Choose", "choice", {"model": "jev-latest"},
+                                                  candidates=task["candidates"], candidates_json=task["candidates_json"])
+            self.assertEqual(output.result[0], first)
+            self.assertEqual(output.result[1]["value"], first)
 
-    async def test_model_list_fingerprint_and_allowlist(self):
-        with patch.object(n.folder_paths, "get_filename_list", return_value=["a.safetensors", "sub/b.safetensors", "c.ckpt"]):
-            output = n.JevModelCandidates.execute("loras", "*.safetensors", '{"a.safetensors":"soft"}').result[0]
-            self.assertEqual(json.loads(output), {"a.safetensors": "soft", "sub/b.safetensors": None})
-            first = n.JevModelCandidates.fingerprint_inputs("loras", "*", "{}")
-        with patch.object(n.folder_paths, "get_filename_list", return_value=["new.safetensors"]):
-            self.assertNotEqual(first, n.JevModelCandidates.fingerprint_inputs("loras", "*", "{}"))
+    async def test_all_tasks_without_schema_input(self):
+        async def fake(state, questions, model, **kwargs):
+            return response_for(questions)
+        cases = [({"task": "multi_choice", "candidates_json": '["a", "b"]'}, '[\n  "a",\n  "b"\n]'),
+                 ({"task": "boolean"}, "true"),
+                 ({"task": "score", "candidates_json": '["low", "high"]'}, "0.5"),
+                 ({"task": "extract"}, "8")]
+        with patch.object(api, "evaluate", side_effect=fake):
+            for task, expected in cases:
+                output = await n.JevInterpret.execute("8 seconds", "Evaluate", task["task"], {"model": "jev-latest"},
+                                                      candidates_json=task.get("candidates_json"))
+                self.assertEqual(output.result[0], expected)
+            with self.assertRaisesRegex(ValueError, "No source value"):
+                await n.JevInterpret.execute("no number", "Duration", "extract", {"model": "jev-latest"})
+
+    async def test_invalid_candidates(self):
+        for candidate_json in ('[]', '["same", "same"]', '[""]', '[7]', '{}', 'not json'):
+            with self.assertRaises(ValueError):
+                s.text_task("Choose", {"task": "choice", "candidates_json": candidate_json})
         with self.assertRaises(ValueError):
-            n.JevModelCandidates.execute("../../", "*", "{}")
+            s.text_task("Score", {"task": "score", "candidates_json": '["one"]'})
+
+
+class GenerationTests(unittest.IsolatedAsyncioTestCase):
+    async def test_chat_request_and_candidate_to_jev_connection(self):
+        candidates = ["Warm light\n\nNatural linen", "Cool light\nPolished metal"]
+        payload = completion_for(json.dumps({"candidates": candidates}))
+        response = MagicMock(status=200)
+        response.text = AsyncMock(return_value=json.dumps(payload))
+        response.__aenter__ = AsyncMock(return_value=response)
+        response.__aexit__ = AsyncMock(return_value=False)
+        session = MagicMock()
+        session.post.return_value = response
+        session.__aenter__ = AsyncMock(return_value=session)
+        session.__aexit__ = AsyncMock(return_value=False)
+        with patch.object(api.aiohttp, "ClientSession", return_value=session), patch.dict(
+            os.environ, {"OPENROUTER_API_KEY": "shared-key"}, clear=True
+        ):
+            generated = await n.OpenRouterText.execute(
+                "Write image prompts", "Be specific", {"output_mode": "candidates", "count": 2},
+                {"model": "custom", "model_id": "vendor/my-model"},
+            )
+            call = session.post.call_args
+            self.assertEqual(call.args[0], api.CHAT_ENDPOINT)
+            self.assertEqual(call.kwargs["headers"]["Authorization"], "Bearer shared-key")
+            self.assertFalse(call.kwargs["allow_redirects"])
+            sent = call.kwargs["json"]
+            self.assertEqual(sent["model"], "vendor/my-model")
+            self.assertEqual(sent["messages"][0], {"role": "system", "content": "Be specific"})
+            self.assertEqual(sent["messages"][-1], {"role": "user", "content": "Write image prompts"})
+            self.assertTrue(sent["response_format"]["json_schema"]["strict"])
+            self.assertTrue(sent["provider"]["require_parameters"])
+            self.assertFalse(sent["stream"])
+            self.assertEqual(json.loads(generated.result[0]), candidates)
+            self.assertEqual(json.loads(generated.result[1]), payload)
+            task = {"task": "choice", "candidates_json": generated.result[0]}
+            questions, _ = s.compile_questions("warm and tactile", s.text_task("Choose", task)[0])
+            response.text.return_value = json.dumps(response_for(questions))
+            selected = await n.JevInterpret.execute("warm and tactile", "Choose", "choice",
+                {"model": "jev-latest"}, provider="openrouter", candidates_json=task["candidates_json"])
+            self.assertEqual(selected.result[0], candidates[0])
+            self.assertEqual(session.post.call_args.kwargs["headers"]["Authorization"], "Bearer shared-key")
+
+    async def test_plain_text_and_direct_key(self):
+        content = "  Multi-line output\nwith whitespace preserved.  "
+        response = MagicMock(status=200)
+        response.text = AsyncMock(return_value=json.dumps(completion_for(content)))
+        response.__aenter__ = AsyncMock(return_value=response)
+        response.__aexit__ = AsyncMock(return_value=False)
+        session = MagicMock()
+        session.post.return_value = response
+        session.__aenter__ = AsyncMock(return_value=session)
+        session.__aexit__ = AsyncMock(return_value=False)
+        with patch.object(api.aiohttp, "ClientSession", return_value=session), patch.dict(
+            os.environ, {"OPENROUTER_API_KEY": "environment-key"}, clear=True
+        ):
+            output = await n.OpenRouterText.execute("Write", "", {"output_mode": "text"},
+                {"model": "openai/gpt-4.1-mini"}, api_key=" direct-key ")
+        self.assertEqual(output.result[0], content)
+        sent = session.post.call_args.kwargs
+        self.assertEqual(sent["headers"]["Authorization"], "Bearer direct-key")
+        self.assertNotIn("response_format", sent["json"])
+        self.assertEqual(sent["json"]["messages"], [{"role": "user", "content": "Write"}])
+
+    def test_incomplete_or_invalid_generations_fail_explicitly(self):
+        malformed = [completion_for(""), {}, {"choices": [None]}]
+        for reason in ("length", "content_filter", "tool_calls", None):
+            response = completion_for("partial text")
+            response["choices"][0]["finish_reason"] = reason
+            malformed.append(response)
+        refusal = completion_for("declined")
+        refusal["choices"][0]["message"]["refusal"] = "refused"
+        malformed.append(refusal)
+        for response in malformed:
+            with self.assertRaises(ValueError):
+                api.generated_text(response)
+        for content in ('not JSON', '[]', '{"candidates":["only one"]}',
+                        '{"candidates":["same","same"]}', '{"candidates":["a",3]}',
+                        '{"candidates":["a",""]}', '{"candidates":["a","b"],"extra":1}'):
+            with self.assertRaises(ValueError):
+                api.generated_text(completion_for(content), 2)
+
+    async def test_missing_key_and_invalid_generation_inputs(self):
+        with patch.dict(os.environ, {}, clear=True):
+            with self.assertRaisesRegex(ValueError, "OPENROUTER_API_KEY"):
+                await api.generate("prompt", "", "model")
+        for prompt, model, count in (("", "model", 0), ("prompt", "", 0), ("prompt", "model", 1)):
+            with self.assertRaises(ValueError):
+                await api.generate(prompt, "", model, candidate_count=count)
 
 
 if __name__ == "__main__":

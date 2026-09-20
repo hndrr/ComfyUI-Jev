@@ -1,0 +1,1118 @@
+{
+  "id": "83f5c765-2125-4957-b949-6959084f8a4d",
+  "revision": 0,
+  "last_node_id": 26,
+  "last_link_id": 17,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "PrimitiveStringMultiline",
+      "pos": [
+        30,
+        60
+      ],
+      "size": [
+        440,
+        240
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "value",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "value"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            1,
+            3,
+            5
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PrimitiveStringMultiline"
+      },
+      "widgets_values": [
+        "新しい香水の広告写真。上質で静かな印象にしたいが、冷たく威圧的にはしたくない。手に取る日常を想像できる、触感のある写真が欲しい。ボトルの形が分かる構図。"
+      ],
+      "widgets_values_named": {
+        "value": "新しい香水の広告写真。上質で静かな印象にしたいが、冷たく威圧的にはしたくない。手に取る日常を想像できる、触感のある写真が欲しい。ボトルの形が分かる構図。"
+      }
+    },
+    {
+      "id": 2,
+      "type": "StringFormat",
+      "pos": [
+        30,
+        410
+      ],
+      "size": [
+        440,
+        270
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "values.a",
+          "type": "*",
+          "link": 1
+        },
+        {
+          "name": "values.b",
+          "type": "*",
+          "link": null
+        },
+        {
+          "name": "f_string",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "f_string"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            2
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "StringFormat"
+      },
+      "widgets_values": [
+        "この香水の広告写真について、光・置き場所・周囲の素材を組み合わせた異なる撮影コンセプトを日本語で提案してください。各案は1〜2文。\n\n制作意図: {a}"
+      ],
+      "widgets_values_named": {
+        "f_string": "この香水の広告写真について、光・置き場所・周囲の素材を組み合わせた異なる撮影コンセプトを日本語で提案してください。各案は1〜2文。\n\n制作意図: {a}"
+      }
+    },
+    {
+      "id": 3,
+      "type": "OpenRouterText",
+      "pos": [
+        530,
+        60
+      ],
+      "size": [
+        480,
+        680
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "link": 2,
+          "widget": {
+            "name": "prompt"
+          }
+        },
+        {
+          "name": "system",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "system"
+          }
+        },
+        {
+          "name": "output_mode",
+          "type": "COMBO",
+          "link": null,
+          "widget": {
+            "name": "output_mode"
+          }
+        },
+        {
+          "name": "output_mode.count",
+          "type": "INT",
+          "link": null,
+          "widget": {
+            "name": "output_mode.count"
+          }
+        },
+        {
+          "name": "model",
+          "type": "COMBO",
+          "link": null,
+          "widget": {
+            "name": "model"
+          }
+        },
+        {
+          "name": "api_key",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "api_key"
+          }
+        },
+        {
+          "name": "refresh",
+          "type": "INT",
+          "link": null,
+          "widget": {
+            "name": "refresh"
+          }
+        },
+        {
+          "name": "temperature",
+          "type": "FLOAT",
+          "link": null,
+          "widget": {
+            "name": "temperature"
+          }
+        },
+        {
+          "name": "max_tokens",
+          "type": "INT",
+          "link": null,
+          "widget": {
+            "name": "max_tokens"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "links": [
+            4
+          ]
+        },
+        {
+          "name": "response_json",
+          "type": "STRING",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "OpenRouterText"
+      },
+      "widgets_values": [
+        "香水の広告写真に使う、異なる撮影案を英語の画像生成プロンプトで提案してください。",
+        "",
+        "candidates",
+        4,
+        "openai/gpt-4.1-mini",
+        "",
+        0,
+        "fixed",
+        0.7,
+        2048
+      ],
+      "widgets_values_named": {
+        "prompt": "香水の広告写真に使う、異なる撮影案を英語の画像生成プロンプトで提案してください。",
+        "system": "",
+        "output_mode": "candidates",
+        "output_mode.count": 4,
+        "model": "openai/gpt-4.1-mini",
+        "api_key": "",
+        "refresh": 0,
+        "control_after_generate": "fixed",
+        "temperature": 0.7,
+        "max_tokens": 2048
+      }
+    },
+    {
+      "id": 4,
+      "type": "JevInterpret",
+      "pos": [
+        1060,
+        60
+      ],
+      "size": [
+        480,
+        650
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "state",
+          "type": "STRING",
+          "link": 3,
+          "widget": {
+            "name": "state"
+          }
+        },
+        {
+          "name": "instructions",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "instructions"
+          }
+        },
+        {
+          "name": "task",
+          "type": "COMBO",
+          "link": null,
+          "widget": {
+            "name": "task"
+          }
+        },
+        {
+          "name": "candidates.candidate0",
+          "type": "STRING",
+          "link": null
+        },
+        {
+          "name": "model",
+          "type": "COMBO",
+          "link": null,
+          "widget": {
+            "name": "model"
+          }
+        },
+        {
+          "name": "provider",
+          "type": "COMBO",
+          "link": null,
+          "widget": {
+            "name": "provider"
+          }
+        },
+        {
+          "name": "api_key",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "api_key"
+          }
+        },
+        {
+          "name": "refresh",
+          "type": "INT",
+          "link": null,
+          "widget": {
+            "name": "refresh"
+          }
+        },
+        {
+          "name": "candidates_json",
+          "type": "STRING",
+          "link": 4
+        },
+        {
+          "name": "threshold",
+          "type": "FLOAT",
+          "link": null,
+          "widget": {
+            "name": "threshold"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "result",
+          "type": "STRING",
+          "links": [
+            6
+          ]
+        },
+        {
+          "name": "details",
+          "type": "DICT",
+          "links": []
+        },
+        {
+          "name": "response_json",
+          "type": "STRING",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "JevInterpret"
+      },
+      "widgets_values": [
+        "高級感は欲しいが、冷たく威圧的にはしたくない。",
+        "制作意図との意味的な適合を比較して1案を選ぶ。単語の一致ではなく、光・素材・構図が与える印象を判断する。高級感だけでなく、親しみやすさと触れたくなる感覚を重視する。",
+        "choice",
+        "jev-latest",
+        "openrouter",
+        "",
+        0,
+        "fixed",
+        0.5
+      ],
+      "widgets_values_named": {
+        "state": "高級感は欲しいが、冷たく威圧的にはしたくない。",
+        "instructions": "制作意図との意味的な適合を比較して1案を選ぶ。単語の一致ではなく、光・素材・構図が与える印象を判断する。高級感だけでなく、親しみやすさと触れたくなる感覚を重視する。",
+        "task": "choice",
+        "model": "jev-latest",
+        "provider": "openrouter",
+        "api_key": "",
+        "refresh": 0,
+        "control_after_generate": "fixed",
+        "threshold": 0.5
+      }
+    },
+    {
+      "id": 5,
+      "type": "StringFormat",
+      "pos": [
+        1060,
+        790
+      ],
+      "size": [
+        440,
+        270
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "values.a",
+          "type": "*",
+          "link": 5
+        },
+        {
+          "name": "values.b",
+          "type": "*",
+          "link": 6
+        },
+        {
+          "name": "values.c",
+          "type": "*",
+          "link": null
+        },
+        {
+          "name": "f_string",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "f_string"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            7
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "StringFormat"
+      },
+      "widgets_values": [
+        "選ばれた撮影案を具体的な英語の画像生成プロンプトに展開してください。制作意図と選ばれた案を保ち、被写体・素材・光・カメラ位置を明記してください。見出し・説明・候補列挙は不要です。\n\n制作意図: {a}\n選ばれた案: {b}"
+      ],
+      "widgets_values_named": {
+        "f_string": "選ばれた撮影案を具体的な英語の画像生成プロンプトに展開してください。制作意図と選ばれた案を保ち、被写体・素材・光・カメラ位置を明記してください。見出し・説明・候補列挙は不要です。\n\n制作意図: {a}\n選ばれた案: {b}"
+      }
+    },
+    {
+      "id": 6,
+      "type": "OpenRouterText",
+      "pos": [
+        1590,
+        60
+      ],
+      "size": [
+        480,
+        680
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "link": 7,
+          "widget": {
+            "name": "prompt"
+          }
+        },
+        {
+          "name": "system",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "system"
+          }
+        },
+        {
+          "name": "output_mode",
+          "type": "COMBO",
+          "link": null,
+          "widget": {
+            "name": "output_mode"
+          }
+        },
+        {
+          "name": "model",
+          "type": "COMBO",
+          "link": null,
+          "widget": {
+            "name": "model"
+          }
+        },
+        {
+          "name": "api_key",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "api_key"
+          }
+        },
+        {
+          "name": "refresh",
+          "type": "INT",
+          "link": null,
+          "widget": {
+            "name": "refresh"
+          }
+        },
+        {
+          "name": "temperature",
+          "type": "FLOAT",
+          "link": null,
+          "widget": {
+            "name": "temperature"
+          }
+        },
+        {
+          "name": "max_tokens",
+          "type": "INT",
+          "link": null,
+          "widget": {
+            "name": "max_tokens"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "links": [
+            8
+          ]
+        },
+        {
+          "name": "response_json",
+          "type": "STRING",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "OpenRouterText"
+      },
+      "widgets_values": [
+        "香水の広告写真に使う、異なる撮影案を英語の画像生成プロンプトで提案してください。",
+        "",
+        "text",
+        "openai/gpt-4.1-mini",
+        "",
+        0,
+        "fixed",
+        0.7,
+        2048
+      ],
+      "widgets_values_named": {
+        "prompt": "香水の広告写真に使う、異なる撮影案を英語の画像生成プロンプトで提案してください。",
+        "system": "",
+        "output_mode": "text",
+        "model": "openai/gpt-4.1-mini",
+        "api_key": "",
+        "refresh": 0,
+        "control_after_generate": "fixed",
+        "temperature": 0.7,
+        "max_tokens": 2048
+      }
+    },
+    {
+      "id": 20,
+      "type": "CheckpointLoaderSimple",
+      "pos": [
+        2140,
+        60
+      ],
+      "size": [
+        360,
+        160
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "ckpt_name",
+          "type": "COMBO",
+          "link": null,
+          "widget": {
+            "name": "ckpt_name"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            11
+          ]
+        },
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            9,
+            10
+          ]
+        },
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            16
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CheckpointLoaderSimple"
+      },
+      "widgets_values": [
+        "YOUR_SD_OR_SDXL_CHECKPOINT.safetensors"
+      ],
+      "widgets_values_named": {
+        "ckpt_name": "YOUR_SD_OR_SDXL_CHECKPOINT.safetensors"
+      }
+    },
+    {
+      "id": 21,
+      "type": "CLIPTextEncode",
+      "pos": [
+        2140,
+        350
+      ],
+      "size": [
+        360,
+        160
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 8,
+          "widget": {
+            "name": "text"
+          }
+        },
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 9
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            12
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        ""
+      ],
+      "widgets_values_named": {
+        "text": ""
+      }
+    },
+    {
+      "id": 22,
+      "type": "CLIPTextEncode",
+      "pos": [
+        2140,
+        650
+      ],
+      "size": [
+        360,
+        160
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "text"
+          }
+        },
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 10
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            13
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        "blurry, low quality, watermark, text"
+      ],
+      "widgets_values_named": {
+        "text": "blurry, low quality, watermark, text"
+      }
+    },
+    {
+      "id": 23,
+      "type": "EmptyLatentImage",
+      "pos": [
+        2140,
+        920
+      ],
+      "size": [
+        360,
+        160
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "width",
+          "type": "INT",
+          "link": null,
+          "widget": {
+            "name": "width"
+          }
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "link": null,
+          "widget": {
+            "name": "height"
+          }
+        },
+        {
+          "name": "batch_size",
+          "type": "INT",
+          "link": null,
+          "widget": {
+            "name": "batch_size"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            14
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "EmptyLatentImage"
+      },
+      "widgets_values": [
+        512,
+        768,
+        1
+      ],
+      "widgets_values_named": {
+        "width": 512,
+        "height": 768,
+        "batch_size": 1
+      }
+    },
+    {
+      "id": 24,
+      "type": "KSampler",
+      "pos": [
+        2600,
+        60
+      ],
+      "size": [
+        360,
+        450
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 11
+        },
+        {
+          "name": "seed",
+          "type": "INT",
+          "link": null,
+          "widget": {
+            "name": "seed"
+          }
+        },
+        {
+          "name": "steps",
+          "type": "INT",
+          "link": null,
+          "widget": {
+            "name": "steps"
+          }
+        },
+        {
+          "name": "cfg",
+          "type": "FLOAT",
+          "link": null,
+          "widget": {
+            "name": "cfg"
+          }
+        },
+        {
+          "name": "sampler_name",
+          "type": "COMBO",
+          "link": null,
+          "widget": {
+            "name": "sampler_name"
+          }
+        },
+        {
+          "name": "scheduler",
+          "type": "COMBO",
+          "link": null,
+          "widget": {
+            "name": "scheduler"
+          }
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 12
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 13
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 14
+        },
+        {
+          "name": "denoise",
+          "type": "FLOAT",
+          "link": null,
+          "widget": {
+            "name": "denoise"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            15
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSampler"
+      },
+      "widgets_values": [
+        1,
+        "fixed",
+        20,
+        7.0,
+        "dpmpp_2m",
+        "karras",
+        1.0
+      ],
+      "widgets_values_named": {
+        "seed": 1,
+        "control_after_generate": "fixed",
+        "steps": 20,
+        "cfg": 7.0,
+        "sampler_name": "dpmpp_2m",
+        "scheduler": "karras",
+        "denoise": 1.0
+      }
+    },
+    {
+      "id": 25,
+      "type": "VAEDecode",
+      "pos": [
+        2600,
+        570
+      ],
+      "size": [
+        360,
+        160
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 15
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 16
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            17
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      },
+      "widgets_values": [],
+      "widgets_values_named": {}
+    },
+    {
+      "id": 26,
+      "type": "SaveImage",
+      "pos": [
+        3060,
+        60
+      ],
+      "size": [
+        360,
+        600
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 17
+        },
+        {
+          "name": "filename_prefix",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "filename_prefix"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SaveImage"
+      },
+      "widgets_values": [
+        "Jev/03_select_and_expand"
+      ],
+      "widgets_values_named": {
+        "filename_prefix": "Jev/03_select_and_expand"
+      }
+    }
+  ],
+  "links": [
+    [
+      1,
+      1,
+      0,
+      2,
+      0,
+      "STRING"
+    ],
+    [
+      2,
+      2,
+      0,
+      3,
+      0,
+      "STRING"
+    ],
+    [
+      3,
+      1,
+      0,
+      4,
+      0,
+      "STRING"
+    ],
+    [
+      4,
+      3,
+      0,
+      4,
+      8,
+      "STRING"
+    ],
+    [
+      5,
+      1,
+      0,
+      5,
+      0,
+      "STRING"
+    ],
+    [
+      6,
+      4,
+      0,
+      5,
+      1,
+      "STRING"
+    ],
+    [
+      7,
+      5,
+      0,
+      6,
+      0,
+      "STRING"
+    ],
+    [
+      8,
+      6,
+      0,
+      21,
+      0,
+      "STRING"
+    ],
+    [
+      9,
+      20,
+      1,
+      21,
+      1,
+      "CLIP"
+    ],
+    [
+      10,
+      20,
+      1,
+      22,
+      1,
+      "CLIP"
+    ],
+    [
+      11,
+      20,
+      0,
+      24,
+      0,
+      "MODEL"
+    ],
+    [
+      12,
+      21,
+      0,
+      24,
+      6,
+      "CONDITIONING"
+    ],
+    [
+      13,
+      22,
+      0,
+      24,
+      7,
+      "CONDITIONING"
+    ],
+    [
+      14,
+      23,
+      0,
+      24,
+      8,
+      "LATENT"
+    ],
+    [
+      15,
+      24,
+      0,
+      25,
+      0,
+      "LATENT"
+    ],
+    [
+      16,
+      20,
+      2,
+      25,
+      1,
+      "VAE"
+    ],
+    [
+      17,
+      25,
+      0,
+      26,
+      0,
+      "IMAGE"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.5,
+      "offset": [
+        30,
+        30
+      ]
+    }
+  },
+  "version": 0.4
+}
