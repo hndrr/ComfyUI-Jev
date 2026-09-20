@@ -116,41 +116,6 @@ def validate_schema(schema):
     return schema
 
 
-def merge_schemas(schemas, schema_json=""):
-    merged = {}
-    sources = list(schemas)
-    if schema_json.strip():
-        sources.append(object_json(schema_json, "Schema"))
-    for schema in sources:
-        validate_schema(schema)
-        duplicate = merged.keys() & schema.keys()
-        if duplicate:
-            raise ValueError(f"Duplicate field IDs: {sorted(duplicate)}")
-        merged.update(schema)
-    if not merged:
-        raise ValueError("Add at least one field to interpret")
-    return merged
-
-
-def make_field(field_id, instructions, kind, presence, criteria="", criteria_format="lines", source="", pattern=NUMBER_PATTERN, group=0):
-    field = {"type": kind, "instructions": instructions, "presence": presence}
-    if kind in ("choice", "multi_choice", "score"):
-        if criteria_format == "json":
-            field["criteria"] = loads(criteria, f"{field_id} criteria")
-        elif criteria_format == "lines":
-            lines = [line.strip() for line in criteria.splitlines() if line.strip()]
-            if kind != "score" and len(lines) != len(set(lines)):
-                raise ValueError(f"{field_id}: duplicate candidate IDs")
-            field["criteria"] = lines if kind == "score" else dict.fromkeys(lines)
-        else:
-            raise ValueError(f"{field_id}: unknown criteria format")
-    elif kind == "boolean" and criteria.strip():
-        field["criteria"] = object_json(criteria, f"{field_id} criteria")
-    elif kind == "extract":
-        field.update(source=source, pattern=pattern, group=group)
-    return validate_schema({field_id: field})
-
-
 def compile_questions(state, schema):
     validate_schema(schema)
     if not isinstance(state, (str, dict, list)):
@@ -209,6 +174,8 @@ def compile_questions(state, schema):
 
 
 def _answer(answers, qid, kind, field_id, criteria=None):
+    if not isinstance(answers, dict):
+        raise ValueError(f"{field_id}: response is missing answers")
     answer = answers.get(qid)
     if not isinstance(answer, dict) or answer.get("type") != kind:
         raise ValueError(f"{field_id}: missing or wrong-type answer for {qid}")
@@ -346,47 +313,63 @@ def resolve(judgments, bindings):
     return {"fields": results}, values
 
 
-def read_value(result, field_id, path, expected):
-    if field_id not in result["fields"]:
-        raise ValueError(f"Unknown field: {field_id}")
-    field = result["fields"][field_id]
-    if field["status"] == "unresolved":
-        raise ValueError(f"{field_id}: value is unresolved; set a default or branch with Jev Inspect Field")
-    value = pointer(field["value"], path)
-    if expected is float and type(value) in (int, float):
-        return _number(float(value), field_id)
-    if expected is int and type(value) is float and math.isfinite(value) and value.is_integer():
-        return int(value)
-    if type(value) is not expected:
-        raise ValueError(f"{field_id}{path}: expected {expected.__name__}, got {type(value).__name__}")
+def candidate_strings(value, label="Candidates"):
+    if not isinstance(value, list) or not value:
+        raise ValueError(f"{label}: provide a nonempty array of complete candidate strings")
+    for index, candidate in enumerate(value):
+        if not isinstance(candidate, str) or not candidate.strip():
+            raise ValueError(f"{label}: candidate {index + 1} must be nonempty text")
+    if len(value) != len(set(value)):
+        raise ValueError(f"{label}: candidates and scoring levels must be unique")
     return value
 
 
-def numeric_judgment(judgments, field_id):
-    if field_id not in judgments["fields"]:
-        raise ValueError(f"Unknown field: {field_id}")
-    field = judgments["fields"][field_id]
-    if field.get("presence", 1) < 0.5:
-        raise ValueError(f"{field_id}: no explicit value to aggregate")
-    if field["type"] == "score":
-        return field["normalized"]
-    if field["type"] == "boolean":
-        return field["answer"]["noul"]
-    raise ValueError(f"{field_id}: ranking and aggregation require score or boolean fields")
+def text_candidates(connected=None, candidates_json=None):
+    connected = {} if connected is None else connected
+    if not isinstance(connected, dict) or any(not re.fullmatch(r"candidate[0-9]+", key) for key in connected):
+        raise ValueError("Connected candidates must be named text inputs")
+    generated = [] if candidates_json is None else loads(candidates_json, "Candidates")
+    if not isinstance(generated, list):
+        raise ValueError("Candidates must be a JSON array")
+    records = []
+    seen = set()
+    for index, item in enumerate([connected[key] for key in sorted(connected, key=lambda key: int(key[9:]))] + generated):
+        if isinstance(item, str):
+            record = {"description": item, "value": item, "content": item}
+        elif isinstance(item, dict) and "value" in item and not item.keys() - {"description", "value", "content"}:
+            record = {**item, "content": item.get("content", item.get("description"))}
+        else:
+            raise ValueError(f"Candidate {index + 1}: expected text or an object with description and value")
+        for name in ("description", "content"):
+            if not isinstance(record.get(name), str) or not record[name].strip():
+                raise ValueError(f"Candidate {index + 1}: {name} must be nonempty text")
+        identity = dumps(record["value"])
+        if identity in seen:
+            raise ValueError(f"Candidate {index + 1}: duplicate candidate value")
+        seen.add(identity)
+        records.append(record)
+    return records
 
 
-def rank(judgments, field_ids):
-    if not field_ids or len(field_ids) != len(set(field_ids)):
-        raise ValueError("Rank requires a nonempty list of unique field IDs")
-    return sorted(({"id": key, "value": numeric_judgment(judgments, key)} for key in field_ids), key=lambda row: row["value"], reverse=True)
-
-
-def weighted_score(judgments, weights):
-    if not isinstance(weights, dict) or not weights:
-        raise ValueError("Weights must be a nonempty object keyed by field ID")
-    rows = [{"id": key, "value": numeric_judgment(judgments, key), "weight": _number(weight, f"{key} weight")} for key, weight in weights.items()]
-    total = sum(row["weight"] for row in rows)
-    if total == 0:
-        raise ValueError("Weights must not sum to zero")
-    value = sum(row["weight"] * row["value"] for row in rows) / total
-    return _number(value, "Weighted score"), rows
+def text_task(instructions, task, threshold=0.5):
+    """Build the private API schema from standard text widgets."""
+    if not isinstance(instructions, str) or not instructions.strip():
+        raise ValueError("Instructions must not be empty")
+    if not isinstance(task, dict) or task.get("task") not in FIELD_TYPES:
+        raise ValueError("Unknown judgment task")
+    kind = task["task"]
+    field = {"type": kind, "instructions": instructions}
+    binding = {}
+    if kind in ("choice", "multi_choice", "score"):
+        candidates = text_candidates(task.get("candidates"), task.get("candidates_json"))
+        if not candidates:
+            raise ValueError("Provide at least one candidate")
+        if kind == "score":
+            field["criteria"] = candidate_strings([item["description"] for item in candidates])
+        else:
+            field["criteria"] = {f"c{i}": item["description"] for i, item in enumerate(candidates)}
+            binding["values"] = {f"c{i}": item["value"] for i, item in enumerate(candidates)}
+    if kind in ("boolean", "multi_choice"):
+        binding["threshold"] = _probability(threshold, "threshold")
+    schema = validate_schema({"value": field})
+    return schema, {"value": binding}

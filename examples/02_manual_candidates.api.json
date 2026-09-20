@@ -1,0 +1,140 @@
+{
+  "1": {
+    "class_type": "PrimitiveStringMultiline",
+    "inputs": {
+      "value": "新しい香水の広告写真。上質で静かな印象にしたいが、冷たく威圧的にはしたくない。手に取る日常を想像できる、触感のある写真が欲しい。ボトルの形が分かる構図。"
+    }
+  },
+  "2": {
+    "class_type": "PrimitiveStringMultiline",
+    "inputs": {
+      "value": "Perfume product photography, amber glass bottle resting on natural linen, warm soft window light.\nClose view at table height, delicate glass reflections, a quiet lived-in setting, generous negative space."
+    }
+  },
+  "3": {
+    "class_type": "PrimitiveStringMultiline",
+    "inputs": {
+      "value": "Luxury perfume campaign, a glass bottle on a polished black marble plinth.\nHard spotlight, deep shadows, high contrast, monumental low angle, immaculate geometric symmetry."
+    }
+  },
+  "4": {
+    "class_type": "PrimitiveStringMultiline",
+    "inputs": {
+      "value": "Perfume bottle suspended underwater, ribbons of blue light, crystalline caustics.\nSurreal floating composition, crisp glass edges, cool silver highlights, dramatic deep blue background."
+    }
+  },
+  "5": {
+    "class_type": "JevInterpret",
+    "inputs": {
+      "state": [
+        "1",
+        0
+      ],
+      "instructions": "制作意図との意味的な適合を比較して1案を選ぶ。単語の一致ではなく、光・素材・構図が与える印象を判断する。高級感だけでなく、親しみやすさと触れたくなる感覚を重視する。",
+      "task": "choice",
+      "model": "jev-latest",
+      "provider": "openrouter",
+      "api_key": "",
+      "refresh": 0,
+      "candidates.candidate0": [
+        "2",
+        0
+      ],
+      "candidates.candidate1": [
+        "3",
+        0
+      ],
+      "candidates.candidate2": [
+        "4",
+        0
+      ]
+    }
+  },
+  "20": {
+    "class_type": "CheckpointLoaderSimple",
+    "inputs": {
+      "ckpt_name": "YOUR_SD_OR_SDXL_CHECKPOINT.safetensors"
+    }
+  },
+  "21": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": [
+        "5",
+        0
+      ],
+      "clip": [
+        "20",
+        1
+      ]
+    }
+  },
+  "22": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "blurry, low quality, watermark, text",
+      "clip": [
+        "20",
+        1
+      ]
+    }
+  },
+  "23": {
+    "class_type": "EmptyLatentImage",
+    "inputs": {
+      "width": 512,
+      "height": 768,
+      "batch_size": 1
+    }
+  },
+  "24": {
+    "class_type": "KSampler",
+    "inputs": {
+      "model": [
+        "20",
+        0
+      ],
+      "seed": 1,
+      "steps": 20,
+      "cfg": 7.0,
+      "sampler_name": "dpmpp_2m",
+      "scheduler": "karras",
+      "positive": [
+        "21",
+        0
+      ],
+      "negative": [
+        "22",
+        0
+      ],
+      "latent_image": [
+        "23",
+        0
+      ],
+      "denoise": 1.0
+    }
+  },
+  "25": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "24",
+        0
+      ],
+      "vae": [
+        "20",
+        2
+      ]
+    }
+  },
+  "26": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": [
+        "25",
+        0
+      ],
+      "filename_prefix": "Jev/02_manual_candidates"
+    }
+  }
+}
