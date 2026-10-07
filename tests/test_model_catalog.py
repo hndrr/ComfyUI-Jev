@@ -44,6 +44,7 @@ class CatalogTests(unittest.IsolatedAsyncioTestCase):
             model("z/text"), model("a/vision", inputs=["text", "image"]), model("z/text"),
             model("b/image", outputs=["image"]), model("c/transcribe", inputs=["audio"]),
             model("d/embed", outputs=["embeddings"]), model(""), model("custom"),
+            *[model(model_id) for model_id in api.DECISIONS_MODELS],
             {}, None, {"id": "bad", "architecture": None},
         ]})
         self.assertEqual(await api.list_text_models(), ("a/vision", "z/text"))
@@ -104,6 +105,15 @@ class CatalogTests(unittest.IsolatedAsyncioTestCase):
         with patch.object(catalog.tempfile, "NamedTemporaryFile", side_effect=PermissionError), self.assertLogs(level="WARNING"):
             await catalog.load()
         self.assertEqual(catalog.model_ids, ("vendor/new-model",))
+
+    async def test_decisions_models_are_removed_from_old_caches(self):
+        self.response.status = 503
+        for cached, expected in (([*api.DECISIONS_MODELS, "vendor/text"], ("vendor/text",)),
+                                 (list(api.DECISIONS_MODELS), ())):
+            self.cache_path.write_text(json.dumps(cached))
+            with self.assertLogs(level="WARNING"):
+                await catalog.load()
+            self.assertEqual(catalog.model_ids, expected)
 
 
 if __name__ == "__main__":

@@ -172,7 +172,8 @@ class SkillWorkflowTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(next(slot['type'] for slot in node['inputs'] if slot['name'] == 'directory'), kind)
         names = list(schema['required']) + list(schema['optional'])
         self.assertEqual([slot['name'] for slot in node['inputs']], names)
-        widget_names = names[:names.index('refresh') + 1] + ['control_after_generate'] + names[names.index('refresh') + 1:]
+        widget_names = [slot['name'] for slot in node['inputs'] if 'widget' in slot]
+        widget_names.insert(widget_names.index('refresh') + 1, 'control_after_generate')
         self.assertEqual(node['widgets_values'], [node['widgets_values_named'][name] for name in widget_names])
         self.assertEqual(node['widgets_values_named']['api_key'], '')
         self.assertEqual(node['widgets_values_named']['control_after_generate'], 'fixed')

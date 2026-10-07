@@ -177,6 +177,8 @@ def _answer(answers, qid, kind, field_id, criteria=None):
     if not isinstance(answers, dict):
         raise ValueError(f"{field_id}: response is missing answers")
     answer = answers.get(qid)
+    if isinstance(answer, dict) and answer.get("type") == "refusal":
+        raise ValueError(f"{field_id}: model refused question {qid}")
     if not isinstance(answer, dict) or answer.get("type") != kind:
         raise ValueError(f"{field_id}: missing or wrong-type answer for {qid}")
     if kind == "noul":

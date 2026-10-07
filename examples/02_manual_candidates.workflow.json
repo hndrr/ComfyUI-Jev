@@ -279,6 +279,43 @@
           "widget": {
             "name": "threshold"
           }
+        },
+        {
+          "name": "shortlist_size",
+          "type": "INT",
+          "widget": {
+            "name": "shortlist_size"
+          },
+          "link": null
+        },
+        {
+          "name": "max_selections",
+          "type": "INT",
+          "widget": {
+            "name": "max_selections"
+          },
+          "link": null
+        },
+        {
+          "name": "gate_threshold",
+          "type": "FLOAT",
+          "widget": {
+            "name": "gate_threshold"
+          },
+          "link": null
+        },
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "experimental_images",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "experimental_images"
+          },
+          "link": null
         }
       ],
       "outputs": [
@@ -312,7 +349,11 @@
         "",
         0,
         "fixed",
-        0.5
+        0.5,
+        3,
+        1,
+        0.3,
+        false
       ],
       "widgets_values_named": {
         "state": "I want a sense of luxury that feels warm and approachable.",
@@ -323,7 +364,11 @@
         "api_key": "",
         "refresh": 0,
         "control_after_generate": "fixed",
-        "threshold": 0.5
+        "threshold": 0.5,
+        "experimental_images": false,
+        "shortlist_size": 3,
+        "max_selections": 1,
+        "gate_threshold": 0.3
       }
     },
     {

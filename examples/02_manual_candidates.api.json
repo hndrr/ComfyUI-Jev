@@ -47,7 +47,11 @@
       "candidates.candidate2": [
         "4",
         0
-      ]
+      ],
+      "experimental_images": false,
+      "shortlist_size": 3,
+      "max_selections": 1,
+      "gate_threshold": 0.3
     }
   },
   "20": {

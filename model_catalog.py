@@ -18,7 +18,7 @@ async def load():
         try:
             cached = loads(CACHE_PATH.read_text(encoding="utf-8"), "OpenRouter model cache")
             if isinstance(cached, list) and cached and all(isinstance(item, str) and item.strip() and item != "custom" for item in cached):
-                model_ids = tuple(sorted(set(cached)))
+                model_ids = tuple(sorted(set(cached) - set(api.DECISIONS_MODELS)))
         except (OSError, ValueError):
             pass
         fallback = "using the last model list" if model_ids else "use custom to enter a model ID"

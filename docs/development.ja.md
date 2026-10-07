@@ -14,6 +14,15 @@ python -m unittest discover -s tests -v
 
 通常テストは有料APIを呼びません。モック応答から候補生成・選択・キャッシュの再利用を確認し、実際のComfyUI実行エンジンで標準ノードを通してSave Imageまで実行します。チェックポイント読込と学習済みモデルの計算もモックのため、画質や実APIの判断精度は検証しません。
 
+別チェックアウトをインストールせず検証する場合は、そのルートの`nodes.py`がComfyUIの同名モジュールを隠さないよう、別ディレクトリから実行します。
+
+```sh
+cd /tmp
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=/path/to/ComfyUI /path/to/ComfyUI/venv/bin/python -m unittest discover -s /path/to/ComfyUI-Jev/tests -v
+```
+
+Decisionsのテストは3モデルのプリセット、送信形式・認証元、全判定タスク、不正・拒否応答、質問上限、モデル一覧の除外、実行・キャッシュを対象とします。実際のComfyUIカスタムノードローダー、PNGバッチ、画像変更時のキャッシュ、抽出位置、候補検証の両段階も確認します。モックによる接続仕様の検証であり、実APIの提供状況やマルチモーダル推論の検証ではありません。任意の2リクエスト実測は[Decisionsの入力](modalities.ja.md)を参照してください。
+
 `examples/`にはUIから読み込む`.workflow.json`と、同じ処理の`.api.json`を置いています。入力や接続を変更する際は両方を更新してください。ノードIDと既存ワークフローの互換性を保ちます。
 
 ## Comfy Registryへの公開
@@ -39,5 +48,7 @@ python -m unittest discover -s tests -v
 ## API仕様
 
 - [TypeSafe](https://docs.typesafe.ai/introduction)
+- [OpenRouter Decisions](https://openrouter.ai/docs/api/api-reference/alphadecisions/submit-a-decisions-request)
+- [モダリティの確認状況と拡張方針](modalities.ja.md)
 - [OpenRouter Chat Completions](https://openrouter.ai/docs/api/api-reference/chat/create-a-chat-completion)
 - [Structured Outputs](https://openrouter.ai/docs/guides/features/structured-outputs)

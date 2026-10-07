@@ -157,6 +157,19 @@
             "name": "gate_threshold"
           },
           "link": null
+        },
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "experimental_images",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "experimental_images"
+          },
+          "link": null
         }
       ],
       "outputs": [
@@ -201,7 +214,8 @@
         "automatic",
         5,
         0.5,
-        0.3
+        0.3,
+        false
       ],
       "widgets_values_named": {
         "prompt": "Write an image generation prompt and a short caption for a warm, approachable perfume advertisement.",
@@ -216,7 +230,8 @@
         "strength_mode": "automatic",
         "shortlist_size": 5,
         "threshold": 0.5,
-        "gate_threshold": 0.3
+        "gate_threshold": 0.3,
+        "experimental_images": false
       }
     },
     {

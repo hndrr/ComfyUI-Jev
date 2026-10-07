@@ -14,6 +14,9 @@ ENDPOINT = "https://api.typesafe.ai/v1/systemone"
 OPENROUTER_ENDPOINT = "https://openrouter.ai/api/alpha/decisions"
 CHAT_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
 MODELS_ENDPOINT = "https://openrouter.ai/api/v1/models"
+LUNA_DECISIONS_MODEL = "openai/gpt-6-luna-decisions"
+CLEF_MODELS = ("cloudflare/clef-flash", "cloudflare/clef")
+DECISIONS_MODELS = (LUNA_DECISIONS_MODEL, *CLEF_MODELS)
 
 
 async def list_text_models():
@@ -35,7 +38,7 @@ async def list_text_models():
             continue
         model_id = model.get("id")
         architecture = model.get("architecture")
-        if not isinstance(model_id, str) or not model_id.strip() or model_id == "custom" or not isinstance(architecture, dict):
+        if not isinstance(model_id, str) or not model_id.strip() or model_id == "custom" or model_id in DECISIONS_MODELS or not isinstance(architecture, dict):
             continue
         if ("text" in (architecture.get("input_modalities") or [])
                 and "text" in (architecture.get("output_modalities") or [])):
@@ -46,7 +49,10 @@ async def list_text_models():
 
 
 def connection(provider, model):
+    model = model.strip()
     if provider == "typesafe":
+        if model in DECISIONS_MODELS:
+            raise ValueError(f"{model} requires provider=openrouter and an OpenRouter API key")
         return ENDPOINT, "TYPESAFE_API_KEY", model
     if provider == "openrouter":
         aliases = {"jev-latest": "~typesafe/jev-latest", "jev-1.13.0": "typesafe/jev-1.13"}
@@ -75,6 +81,20 @@ def retry_delay(header, attempt):
 
 async def evaluate(state, questions, model, provider="typesafe", api_key=""):
     endpoint, key_name, model = connection(provider, model)
+    if provider == "openrouter" and model == LUNA_DECISIONS_MODEL and len(questions) > 200:
+        raise ValueError("GPT-6 Luna Decisions supports at most 200 questions per request; reduce candidates or shortlist_size")
+    # Conservative upstream Workers AI limit; no assumption that the router batches.
+    if provider == "openrouter" and model in CLEF_MODELS:
+        if len(questions) > 64:
+            raise ValueError("Clef requests are limited to 64 questions based on the hosted provider's documented cap; reduce candidates or shortlist_size")
+        for qid, question in questions.items():
+            kind = question.get("type")
+            bounds = {"choice": (2, 255), "score": (2, 10)}.get(kind)
+            if bounds is not None:
+                criteria = question.get("criteria")
+                expected = dict if kind == "choice" else list
+                if not isinstance(criteria, expected) or not bounds[0] <= len(criteria) <= bounds[1]:
+                    raise ValueError(f"Clef {qid}: {kind} requires {bounds[0]}–{bounds[1]} criteria under the hosted provider's limits; adjust candidates")
     if not questions:
         return {"model": model, "answers": {}, "usage": {"input_tokens": 0, "output_tokens": 0}}
     return await _post_json(endpoint, {"model": model, "state": state, "questions": questions},
@@ -87,6 +107,8 @@ async def generate(prompt, system, model, temperature=0.7, max_tokens=2048, cand
         raise ValueError("OpenRouter Text: prompt cannot be empty")
     if not isinstance(model, str) or not model.strip():
         raise ValueError("OpenRouter Text: model ID cannot be empty")
+    if model.strip() in DECISIONS_MODELS:
+        raise ValueError("Decisions models do not generate text; use Jev Interpret or Jev Skill Choice with provider=openrouter")
     if type(candidate_count) is not int or not (candidate_count == 0 or 2 <= candidate_count <= 100):
         raise ValueError("OpenRouter Text: candidate_count must be 2–100, or 0 for text")
     messages = []

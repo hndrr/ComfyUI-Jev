@@ -81,6 +81,18 @@ PowerShellでは`$env:OPENROUTER_API_KEY="your-openrouter-key"`です。
 
 Jevの判定にもOpenRouterを使う場合は、Jev InterpretまたはJev Skill Choiceの`provider`を`openrouter`へ変更します。`api_key`が空欄なら`OPENROUTER_API_KEY`を読みます。直接入力する場合も、選択したproviderのキーを使ってください。
 
+### GPT-6 Luna Decisions・Cloudflare Clefを使う
+
+**Jev Interpret** または **Jev Skill Choice** で`provider = openrouter`にし、次のモデルを選びます。
+
+- `openai/gpt-6-luna-decisions`
+- `cloudflare/clef-flash`
+- `cloudflare/clef`
+
+既存の判定タスクをOpenRouterのDecisionsエンドポイントで実行します。`custom`の`model_id`へ同じIDを指定しても使えます。キーは **OpenRouter発行のもの** を使用し、OpenAIやCloudflare直結用のキーは使いません。これらのモデルはOpenRouter Textの文章生成には使えません。
+
+GPT-6 Luna Decisionsは1リクエスト最大200問です。Clefには[提供元の制限](https://developers.cloudflare.com/workers-ai/models/clef/)を保守的に適用し、展開後64問・choiceの選択肢2〜255個・scoreの段階2〜10個までに制限します。Router固有の上限を別途実証したものではなく、自動分割はしません。Clef系のWorkers AIでは、現在テキストstateの先頭約2Kトークンだけが読まれるため、重要な文脈を短く先頭に置いてください。Lunaには任意の`IMAGE`バッチ入力もありますが、`experimental_images`による実験用で初期状態は無効です。OpenRouterへの送信形式の候補であり、サーバー側の画像認識は未検証です。Clefの画像変換形式は未確定です。[入力の組み合わせと検証](docs/modalities.ja.md)を参照してください。
+
 ## まず試す
 
 TypeSafeのキーを設定したら、文章が指定した条件に当てはまるかを判定してみます。
