@@ -24,9 +24,13 @@
 
 booleanとmulti_choiceの`threshold`は既定0.5、比較は`>=`です。詳細設定から変更できます。scoreのconfidenceを評価値へ混ぜません。数値が必要なら標準のConvert Number、真偽による分岐にはCompare TextとSwitchなどを使います。
 
-出力は`result`（STRING）、`details`（DICT、判定の詳細）、`response_json`（STRING、生のAPI応答）です。JSON形式の解析結果も、必要ならstateへ文字列として渡せます。画像・音声・動画を直接Jevへ送るノードではありません。
+出力は`result`（STRING）、`details`（DICT、判定の詳細）、`response_json`（STRING、生のAPI応答）です。JSON形式の解析結果も、必要ならstateへ文字列として渡せます。OpenRouter経由のLunaでは、詳細設定の`experimental_images`を有効にすると`images`へ標準IMAGEバッチを接続できます。実験用の送信形式で、サーバー側の画像認識は未検証です。音声・動画・ファイルの直接入力はなく、既存の前処理ノードを使います。[入力の組み合わせと検証](modalities.ja.md)を参照してください。
 
 Jevモデルは既定`jev-latest`。TypeSafeでは`jev-preview`、`jev-1.13.0`、任意IDにも対応します。OpenRouterでは`jev-latest`を`~typesafe/jev-latest`、`jev-1.13.0`を`typesafe/jev-1.13`として送信します。`jev-preview`は未対応です。任意IDは`custom`で指定します。
+
+`openai/gpt-6-luna-decisions`・`cloudflare/clef-flash`・`cloudflare/clef`は`provider = openrouter`で使用します。提案やSkill選択を含む既存タスクを、共通のDecisions形式で送受信します。GPT-6 Lunaの最大200問は展開後に確認します。`multi_choice`は候補ごとに1問となり、明示指定の有無・ゲート・検証の質問も数えます。上限を超えるリクエストは送信前にエラーになり、自動分割や切り詰めは行いません。拒否・回答の欠落・不完全な確率分布もエラーとし、falseや0へ置き換えません。
+
+Clefには[提供元の制限](https://developers.cloudflare.com/workers-ai/models/clef/)を保守的に適用し、展開後64問・choiceの選択肢2〜255個・scoreの段階2〜10個までに制限します。Router固有の上限を別途実証したものではなく、自動分割はしません。Clef系では現在、提供元がテキストstateを先頭約2Kトークンに切り詰めます。公称コンテキスト長まで全文が読まれるとは限りません。[モダリティの確認状況](modalities.ja.md)でモデルの能力と、この拡張の入力対応を区別しています。
 
 ### 候補の提案
 
@@ -63,6 +67,8 @@ Jevモデルは既定`jev-latest`。TypeSafeでは`jev-preview`、`jev-1.13.0`�
 `choice`・`multi_choice`でもこの形式を使えます。`description`を比較し、選ばれた`value`を出力します。
 
 ## OpenRouter Text
+
+上記3つのDecisionsモデルは、古いキャッシュも含めて文章生成用モデル一覧から除外します。`custom`で指定した場合も、生成リクエストを送る前にエラーになります。
 
 普通の文章生成にも、Jevへ渡す候補生成にも使えます。
 
@@ -115,6 +121,6 @@ YAMLのフロントマターに`name`と`description`を指定できます。省
 
 ## 実行とキャッシュ
 
-ComfyUIのキャッシュを使用します。画像生成側のseed・幅・高さだけの変更では、文章生成もJevの問い合わせも増えません。Jevの判断指示だけを変えた場合は、生成済み候補を再利用できます。ノードの`refresh`を変更すると、次の実行時にそのノードへ再問い合わせします。
+ComfyUIのキャッシュを使用します。画像生成側のseed・幅・高さだけの変更では、文章生成もJevの問い合わせも増えません。Jevの判断指示だけを変えた場合は、生成済み候補を再利用できます。接続画像を変更すると、その判定キャッシュは更新されます。ノードの`refresh`を変更すると、次の実行時にそのノードへ再問い合わせします。
 
 入力・モデル・キー・しきい値など、問い合わせノード自身の設定変更はキャッシュ更新の対象です。APIは1回60秒、429 / 529は`Retry-After`に従い最大2回再試行します。それ以外の失敗や不正な応答はエラーとして返します。

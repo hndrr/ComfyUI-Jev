@@ -81,6 +81,18 @@ In PowerShell, use `$env:OPENROUTER_API_KEY="your-openrouter-key"`.
 
 To use OpenRouter for Jev judgments as well, change `provider` to `openrouter` in Jev Interpret or Jev Skill Choice. An empty `api_key` field then uses `OPENROUTER_API_KEY`. When entering a key directly, use the key for the selected provider.
 
+### GPT-6 Luna Decisions and Cloudflare Clef
+
+In **Jev Interpret** or **Jev Skill Choice**, set `provider = openrouter` and select one of these model presets:
+
+- `openai/gpt-6-luna-decisions`
+- `cloudflare/clef-flash`
+- `cloudflare/clef`
+
+These use OpenRouter's Decisions endpoint with the existing judgment tasks. `custom` with the same `model_id` also works. Use an **OpenRouter** key; direct OpenAI and Cloudflare keys are not accepted. These models cannot generate text in OpenRouter Text.
+
+GPT-6 Luna Decisions permits at most 200 questions per request. For Clef, this extension conservatively applies the [hosted provider limits](https://developers.cloudflare.com/workers-ai/models/clef/): 64 expanded questions per request, 2–255 choices, and 2–10 score levels. These are upstream constraints, not a separately verified router limit; Jev does not split requests. Clef models currently read only roughly the first 2K tokens of text state on Workers AI; keep the important context short and first. Luna also has an optional `IMAGE` batch input behind `experimental_images`, off by default. Its OpenRouter image mapping is a candidate, not verified server image decoding. Clef image routing remains unresolved. See [input composition and verification](docs/modalities.md).
+
 ## First workflow
 
 After setting your TypeSafe key, try judging whether a sentence meets a condition.

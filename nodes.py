@@ -1,7 +1,7 @@
 from comfy_api.latest import ComfyExtension, io
 import folder_paths
 
-from . import api, model_catalog, semantics as s, skills, suggestions
+from . import api, media, model_catalog, semantics as s, skills, suggestions
 
 
 def jev_connection_inputs():
@@ -10,8 +10,9 @@ def jev_connection_inputs():
             io.DynamicCombo.Option("jev-latest", []),
             io.DynamicCombo.Option("jev-preview", []),
             io.DynamicCombo.Option("jev-1.13.0", []),
+            *[io.DynamicCombo.Option(model_id, []) for model_id in api.DECISIONS_MODELS],
             io.DynamicCombo.Option("custom", [io.String.Input("model_id", default="jev-1.13.0")]),
-        ]),
+        ], tooltip="OpenAI and Cloudflare Decisions models require provider=openrouter. Clef models truncate text state to roughly the first 2K tokens."),
         io.Combo.Input("provider", options=["typesafe", "openrouter"], default="typesafe"),
         io.String.Input("api_key", default="", tooltip="Empty uses the provider's environment variable. Entered keys are saved in workflows; remove before sharing."),
         io.Int.Input("refresh", default=0, min=0, control_after_generate=io.ControlAfterGenerate.fixed, tooltip="Keep fixed to reuse results. Change to request a new judgment."),
@@ -24,6 +25,14 @@ def candidate_inputs():
             io.String.Input("candidate", force_input=True), prefix="candidate", min=0, max=100)),
         io.String.Input("candidates_json", force_input=True, optional=True,
                         tooltip="Connect OpenRouter Text in candidates mode, or supply a JSON array of text strings or description/content/value records."),
+    ]
+
+
+def image_inputs():
+    return [
+        io.Image.Input("images", optional=True, tooltip="Optional image batch or extracted video frames. Experimental Luna transport; see experimental_images."),
+        io.Boolean.Input("experimental_images", default=False, optional=True, advanced=True,
+                         tooltip="Opt into the unverified OpenRouter image mapping for Luna. The router receives OpenAI content parts in state; server image decoding has not been verified. Text-only requests are unaffected."),
     ]
 
 
@@ -47,6 +56,7 @@ class JevInterpret(io.ComfyNode):
                              tooltip="Suggest mode: maximum accepted candidates. May return none."),
                 io.Float.Input("gate_threshold", default=0.3, min=0, max=1, step=0.01, optional=True, advanced=True,
                                tooltip="Suggest mode: minimum need for specialized guidance before full-content verification."),
+                *image_inputs(),
             ],
             outputs=[io.String.Output(display_name="result"), io.Dict.Output(display_name="details"), io.String.Output(display_name="response_json")],
         )
@@ -54,14 +64,15 @@ class JevInterpret(io.ComfyNode):
     @classmethod
     async def execute(cls, state, instructions, task, model, provider="typesafe", api_key="", refresh=0,
                       threshold=0.5, candidates=None, candidates_json=None, shortlist_size=3, max_selections=1,
-                      gate_threshold=0.3):
+                      gate_threshold=0.3, images=None, experimental_images=False):
         model_id = model["model_id"] if model["model"] == "custom" else model["model"]
         if not model_id.strip():
             raise ValueError("Model ID cannot be empty")
+        request_state = media.decision_state(state, images, experimental_images, model_id, provider)
         if task == "suggest":
             candidates = s.text_candidates(candidates, candidates_json)
             values, details, responses = await suggestions.suggest(
-                state, instructions, candidates, model_id, provider, api_key,
+                request_state, instructions, candidates, model_id, provider, api_key,
                 shortlist_size, max_selections, gate_threshold, threshold,
             )
             return io.NodeOutput(s.dumps(values), details, s.dumps(responses))
@@ -69,7 +80,7 @@ class JevInterpret(io.ComfyNode):
             "task": task, "candidates": candidates or {}, "candidates_json": candidates_json,
         }, threshold)
         questions, plans = s.compile_questions(state, schema)
-        response = await api.evaluate(state, questions, model_id, provider=provider, api_key=api_key)
+        response = await api.evaluate(request_state, questions, model_id, provider=provider, api_key=api_key)
         judgments = s.collect_judgments(response, plans)
         resolved, values = s.resolve(judgments, bindings)
         if "value" not in values:
@@ -104,6 +115,7 @@ class JevSkillChoice(io.ComfyNode):
                                tooltip="Minimum fit required for each selected skill."),
                 io.Float.Input("gate_threshold", default=0.3, min=0, max=1, step=0.01, optional=True, advanced=True,
                                tooltip="Minimum need for specialized guidance before evaluating full skill contents."),
+                *image_inputs(),
             ],
             outputs=[io.String.Output(display_name="text"), io.Dict.Output(display_name="skills"),
                      io.Dict.Output(display_name="details"), io.String.Output(display_name="response_json")],
@@ -117,10 +129,12 @@ class JevSkillChoice(io.ComfyNode):
 
     @classmethod
     async def execute(cls, prompt, directory, instructions, model, provider="typesafe", api_key="", refresh=0,
-                      max_selections=3, strength_mode="automatic", shortlist_size=5, threshold=0.5, gate_threshold=0.3):
+                      max_selections=3, strength_mode="automatic", shortlist_size=5, threshold=0.5, gate_threshold=0.3,
+                      images=None, experimental_images=False):
         model_id = model["model_id"] if model["model"] == "custom" else model["model"]
         if not model_id.strip():
             raise ValueError("Model ID cannot be empty")
+        request_state = media.decision_state(prompt, images, experimental_images, model_id, provider)
         if strength_mode not in ("automatic", "uniform"):
             raise ValueError("strength_mode must be automatic or uniform")
         records = skills.read_skills(directory, folder_paths.base_path)
@@ -128,7 +142,7 @@ class JevSkillChoice(io.ComfyNode):
                        "value": item["path"]} for item in records]
         automatic = strength_mode == "automatic"
         values, details, responses = await suggestions.suggest(
-            prompt, instructions, candidates, model_id, provider, api_key,
+            request_state, instructions, candidates, model_id, provider, api_key,
             shortlist_size, max_selections, gate_threshold, threshold, score_applicability=automatic,
         )
         by_path = {item["path"]: item for item in records}

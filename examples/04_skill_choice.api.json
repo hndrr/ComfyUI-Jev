@@ -22,7 +22,8 @@
       "strength_mode": "automatic",
       "shortlist_size": 5,
       "threshold": 0.5,
-      "gate_threshold": 0.3
+      "gate_threshold": 0.3,
+      "experimental_images": false
     }
   },
   "3": {

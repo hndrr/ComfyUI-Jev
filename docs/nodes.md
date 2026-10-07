@@ -24,9 +24,13 @@ When both are connected, individually connected candidates come first in input-n
 
 For `boolean` and `multi_choice`, `threshold` defaults to 0.5 and uses a `>=` comparison. Change it in the advanced settings. Score confidence is not mixed into the evaluation value. Use standard Convert Number nodes when you need a number, or Compare Text and Switch nodes for conditional branching.
 
-Outputs are `result` (STRING), `details` (DICT containing judgment details), and `response_json` (STRING containing the raw API response). You can also pass JSON analysis results to `state` as text. This node does not send images, audio, or video directly to Jev.
+Outputs are `result` (STRING), `details` (DICT containing judgment details), and `response_json` (STRING containing the raw API response). You can also pass JSON analysis results to `state` as text. For Luna through OpenRouter, `images` accepts a ComfyUI IMAGE batch when advanced `experimental_images` is enabled. This mapping is experimental and server image decoding is unverified. Native audio/video/file inputs are not available; use existing preprocessing nodes. See [input composition and verification](modalities.md).
 
 The default Jev model is `jev-latest`. TypeSafe also supports `jev-preview`, `jev-1.13.0`, and custom IDs. With OpenRouter, `jev-latest` is sent as `~typesafe/jev-latest` and `jev-1.13.0` as `typesafe/jev-1.13`. OpenRouter does not support `jev-preview`. Select `custom` to specify another ID.
+
+The `openai/gpt-6-luna-decisions`, `cloudflare/clef-flash`, and `cloudflare/clef` presets require `provider = openrouter`. All existing tasks, including suggestions and Skill selection, use the same Decisions request/answer contract. GPT-6 Luna's 200-question limit is checked after expansion: each `multi_choice` candidate is a separate question, and presence/gate/verification questions also count. Oversized requests fail before that request is sent. No automatic splitting or truncation is performed by Jev. Refusals, missing answers, or incomplete probability distributions produce errors, not false/zero results.
+
+For Clef, this extension conservatively applies the [hosted provider limits](https://developers.cloudflare.com/workers-ai/models/clef/): 64 expanded questions per request, 2–255 choices, and 2–10 score levels. These are upstream constraints, not a separately verified router limit; Jev does not split requests. Clef models currently truncate text state to roughly the first 2K tokens upstream. Their advertised context window does not mean all long text is read. [Modality notes](modalities.md) distinguish model capabilities from this extension's supported inputs.
 
 ### Candidate suggestions
 
@@ -79,6 +83,8 @@ Use this node for general text generation or to generate candidates for Jev.
 
 The model list comes from [OpenRouter's model catalog](https://openrouter.ai/docs/api/api-reference/models/list-all-models-and-their-properties) when ComfyUI starts. Listing models requires no API key. If fetching fails, the last saved list is used; if no list has been saved, enter an ID with `custom`. Restart ComfyUI to update the list.
 
+The three Decisions presets above are excluded from this text-generation list, including old cached lists. Entering one with `custom` also produces an error before any generation request.
+
 Candidate mode requests Structured Outputs internally and returns an array of candidates as a STRING. **Candidates do not need to fit on one line.** Line breaks, paragraphs, and whitespace within each candidate are preserved. A mismatched candidate count, duplicates, empty candidates, or a truncated response produces an explicit error.
 
 Candidate mode requires a model that supports Structured Outputs, including when using `custom`. Regular `text` mode does not request Structured Outputs. The `response_json` output contains the original API response, including the model name and usage.
@@ -115,6 +121,6 @@ Connect `text` to OpenRouter Text's `system` input to use the selected guidance 
 
 ## Execution and caching
 
-The nodes use ComfyUI's cache. Changing only the image generation seed, width, or height does not trigger another text generation or Jev request. Changing only Jev's judgment instructions can reuse previously generated candidates. Change a node's `refresh` to request a new result from that node on the next run.
+The nodes use ComfyUI's cache. Changing only the image generation seed, width, or height does not trigger another text generation or Jev request. Changing only Jev's judgment instructions can reuse previously generated candidates. Changing an attached image invalidates that judgment's cache. Change a node's `refresh` to request a new result from that node on the next run.
 
 Changes to a request node's own inputs, model, key, thresholds, or other settings invalidate its cached result. Each API request has a 60-second timeout. HTTP 429 / 529 responses are retried up to twice according to `Retry-After`. Other failures and malformed responses are returned as errors.
