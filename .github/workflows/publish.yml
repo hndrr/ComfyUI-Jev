@@ -167,7 +167,7 @@ jobs:
 
     sync-release-notes:
         name: Sync notes for existing Registry versions
-        if: github.repository == 'hndrr/ComfyUI-Jev' && github.event.repository.fork == false && github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && inputs.mode == 'sync-notes'
+        if: github.repository == 'hndrr/ComfyUI-Jev' && github.event.repository.fork == false && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/codex/release-history') && github.event_name == 'workflow_dispatch' && inputs.mode == 'sync-notes'
         runs-on: ubuntu-latest
         permissions:
             contents: write
@@ -181,6 +181,8 @@ jobs:
               uses: actions/setup-python@v5
               with:
                   python-version: '3.12'
+            - name: Run release automation tests
+              run: python -m unittest discover -s .github/tests -v
             - name: Create missing releases and sync existing notes
               shell: bash
               env:
