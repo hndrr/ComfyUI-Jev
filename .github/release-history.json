@@ -1,0 +1,13 @@
+{
+  "releases": {
+    "0.1.0": {
+      "sha": "0e5746a9d6c6e6331ba02e44d27822dcfe9ce7b8",
+      "body": "- Add Jev Interpret for candidate selection, condition evaluation, scoring, and number extraction.\n- Add Jev Skill Choice for discovering and selecting local Skills.\n- Add OpenRouter text generation and example workflows."
+    },
+    "0.1.1": {
+      "sha": "12239dab9f03cd4c3dead4b043028ea602b8d43b",
+      "body": "- License ComfyUI-Jev under the MIT License."
+    }
+  },
+  "superseded": {}
+}
