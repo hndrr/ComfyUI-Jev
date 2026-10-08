@@ -1,36 +1,189 @@
-name: Publish to Comfy Registry
-
+name: Publish to Comfy registry
 on:
-  workflow_dispatch:
-  push:
-    branches: [main]
-    paths: [pyproject.toml]
+    workflow_dispatch:
+        inputs:
+            mode:
+                description: Publish the current version, or only sync existing release notes
+                type: choice
+                options:
+                    - publish
+                    - sync-notes
+                default: publish
+            release_notes:
+                description: Optional release notes for manual publishing
+                type: string
+                required: false
+    push:
+        branches:
+            - main
+        paths-ignore:
+            - '.github/**'
+            - 'README*.md'
+            - MAINTAINERS.md
+            - 'docs/development*.md'
+            - 'tests/**'
 
 permissions:
-  contents: read
+    contents: read
 
 concurrency:
-  group: publish-comfy-registry
-  cancel-in-progress: false
+    group: comfy-registry-publish
+    cancel-in-progress: false
+    queue: max
 
 jobs:
-  publish-node:
-    name: Publish Custom Node
-    if: github.repository == 'hndrr/ComfyUI-Jev' && github.event.repository.fork == false && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out code
-        uses: actions/checkout@v7
-      - name: Check Registry token
-        env:
-          REGISTRY_ACCESS_TOKEN: ${{ secrets.REGISTRY_ACCESS_TOKEN }}
-        run: |
-          if [ -z "$REGISTRY_ACCESS_TOKEN" ]; then
-            echo "::error::Add the hndr publisher API key as the REGISTRY_ACCESS_TOKEN repository secret."
-            exit 1
-          fi
-      - name: Publish Custom Node
-        uses: Comfy-Org/publish-node-action@main
-        with:
-          personal_access_token: ${{ secrets.REGISTRY_ACCESS_TOKEN }}
-          skip_checkout: 'true'
+    prepare-release:
+        name: Prepare Registry release
+        if: github.repository == 'hndrr/ComfyUI-Jev' && github.event.repository.fork == false && github.ref == 'refs/heads/main' && (github.event_name != 'workflow_dispatch' || inputs.mode == 'publish')
+        runs-on: ubuntu-latest
+        permissions:
+            contents: write
+        outputs:
+            publish: ${{ github.event_name == 'workflow_dispatch' || steps.version.outputs.publish == 'true' }}
+            release_sha: ${{ steps.revision.outputs.sha }}
+            release_version: ${{ steps.notes.outputs.version }}
+            release_notes: ${{ steps.notes.outputs.body }}
+        steps:
+            - name: Check out code
+              uses: actions/checkout@v7
+              with:
+                  ref: main
+                  fetch-depth: 0
+                  persist-credentials: false
+            - name: Set up Python for version update
+              uses: actions/setup-python@v5
+              with:
+                  python-version: '3.12'
+            - name: Check Registry token
+              env:
+                  REGISTRY_ACCESS_TOKEN: ${{ secrets.REGISTRY_ACCESS_TOKEN }}
+              run: |
+                  if [ -z "$REGISTRY_ACCESS_TOKEN" ]; then
+                      echo "::error::Add the hndr publisher API key as the REGISTRY_ACCESS_TOKEN repository secret."
+                      exit 1
+                  fi
+            - name: Run release automation tests
+              run: python -m unittest discover -s .github/tests -v
+            - name: Increment and commit patch version
+              id: version
+              if: github.event_name == 'push'
+              shell: bash
+              env:
+                  BEFORE_SHA: ${{ github.event.before }}
+                  PUSH_SHA: ${{ github.sha }}
+                  GH_TOKEN: ${{ github.token }}
+              run: |
+                  set -euo pipefail
+                  git config user.name "github-actions[bot]"
+                  git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+                  authorization=$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)
+
+                  for attempt in 1 2 3; do
+                      git fetch origin main
+                      git reset --hard origin/main
+                      python .github/scripts/prepare_version.py > "$RUNNER_TEMP/registry-version"
+                      version=$(cat "$RUNNER_TEMP/registry-version")
+                      if [ "$version" = "skip" ]; then
+                          echo "This push is already included in a prepared release."
+                          echo "publish=false" >> "$GITHUB_OUTPUT"
+                          exit 0
+                      fi
+                      source_sha=$(git rev-parse HEAD)
+                      git add pyproject.toml
+                      git commit --allow-empty -m "Prepare registry version $version" -m "Registry-Source: $source_sha"
+                      # GITHUB_TOKEN pushes do not trigger another publish run.
+                      if git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $authorization" push origin HEAD:main; then
+                          echo "publish=true" >> "$GITHUB_OUTPUT"
+                          exit 0
+                      fi
+                      echo "::warning::Version push failed; retrying ($attempt/3)."
+                  done
+                  echo "::error::Could not commit the registry version to main."
+                  exit 1
+            - name: Record release commit
+              id: revision
+              shell: bash
+              run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+            - name: Prepare shared release notes
+              id: notes
+              if: github.event_name == 'workflow_dispatch' || steps.version.outputs.publish == 'true'
+              shell: bash
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  RELEASE_NOTES_INPUT: ${{ inputs.release_notes }}
+              run: python .github/scripts/release_notes.py prepare
+
+    publish-node:
+        name: Publish Custom Node to registry
+        needs: prepare-release
+        if: needs.prepare-release.outputs.publish == 'true'
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+        steps:
+            - name: Check out prepared release
+              uses: actions/checkout@v7
+              with:
+                  ref: ${{ needs.prepare-release.outputs.release_sha }}
+                  persist-credentials: false
+            - name: Pin comfy-cli version
+              shell: bash
+              run: echo 'comfy-cli==1.22.0' > "$RUNNER_TEMP/comfy-cli-constraints.txt"
+            - name: Publish Custom Node
+              uses: Comfy-Org/publish-node-action@d2366e7abb6ab16f3bb03e3520ae25c8cf749bc9
+              env:
+                  PIP_CONSTRAINT: ${{ runner.temp }}/comfy-cli-constraints.txt
+                  COMFY_NODE_CHANGELOG: ${{ needs.prepare-release.outputs.release_notes }}
+              with:
+                  personal_access_token: ${{ secrets.REGISTRY_ACCESS_TOKEN }}
+                  skip_checkout: 'true'
+
+    create-release:
+        name: Create GitHub Release and sync notes
+        needs: [prepare-release, publish-node]
+        if: needs.prepare-release.outputs.publish == 'true'
+        runs-on: ubuntu-latest
+        permissions:
+            contents: write
+        steps:
+            - name: Check out published commit
+              uses: actions/checkout@v7
+              with:
+                  ref: ${{ needs.prepare-release.outputs.release_sha }}
+                  persist-credentials: false
+            - name: Set up Python
+              uses: actions/setup-python@v5
+              with:
+                  python-version: '3.12'
+            - name: Create release with shared notes
+              shell: bash
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  REGISTRY_ACCESS_TOKEN: ${{ secrets.REGISTRY_ACCESS_TOKEN }}
+                  RELEASE_VERSION: ${{ needs.prepare-release.outputs.release_version }}
+                  RELEASE_SHA: ${{ needs.prepare-release.outputs.release_sha }}
+                  RELEASE_NOTES: ${{ needs.prepare-release.outputs.release_notes }}
+              run: python .github/scripts/release_notes.py create
+
+    sync-release-notes:
+        name: Sync notes for existing Registry versions
+        if: github.repository == 'hndrr/ComfyUI-Jev' && github.event.repository.fork == false && github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && inputs.mode == 'sync-notes'
+        runs-on: ubuntu-latest
+        permissions:
+            contents: write
+        steps:
+            - name: Check out release history
+              uses: actions/checkout@v7
+              with:
+                  fetch-depth: 0
+                  persist-credentials: false
+            - name: Set up Python
+              uses: actions/setup-python@v5
+              with:
+                  python-version: '3.12'
+            - name: Create missing releases and sync existing notes
+              shell: bash
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  REGISTRY_ACCESS_TOKEN: ${{ secrets.REGISTRY_ACCESS_TOKEN }}
+              run: python .github/scripts/release_notes.py backfill
