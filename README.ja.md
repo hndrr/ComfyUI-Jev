@@ -81,6 +81,12 @@ PowerShellでは`$env:OPENROUTER_API_KEY="your-openrouter-key"`です。
 
 Jevの判定にもOpenRouterを使う場合は、Jev InterpretまたはJev Skill Choiceの`provider`を`openrouter`へ変更します。`api_key`が空欄なら`OPENROUTER_API_KEY`を読みます。直接入力する場合も、選択したproviderのキーを使ってください。
 
+## OpenRouterで画像を判定する
+
+Jev InterpretとJev Skill Choiceで、`openai/gpt-6-luna-decisions`・`cloudflare/clef`・`cloudflare/clef-flash`を選べます。`provider = openrouter`にし、既存の`OPENROUTER_API_KEY`を使う場合は`api_key`を空欄にします。Load Imageの出力を任意入力`images`へ接続してください。3モデルともDecisions APIを使います。OpenRouter Textは従来どおり文章生成用です。
+
+画像バッチ全体と`content_json`の追加情報を、ランキング・候補検証の両方へ渡します。リサイズ、動画のフレーム選択、音声の文字起こし、文書ページの画像化には、既存のComfyUIノードを組み合わせます。[入力形式・制約・実測結果](docs/decisions.ja.md)を参照してください。
+
 ## まず試す
 
 TypeSafeのキーを設定したら、文章が指定した条件に当てはまるかを判定してみます。

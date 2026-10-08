@@ -81,6 +81,12 @@ In PowerShell, use `$env:OPENROUTER_API_KEY="your-openrouter-key"`.
 
 To use OpenRouter for Jev judgments as well, change `provider` to `openrouter` in Jev Interpret or Jev Skill Choice. An empty `api_key` field then uses `OPENROUTER_API_KEY`. When entering a key directly, use the key for the selected provider.
 
+## Image decisions through OpenRouter
+
+Jev Interpret and Jev Skill Choice also offer `openai/gpt-6-luna-decisions`, `cloudflare/clef`, and `cloudflare/clef-flash`. Set `provider = openrouter`, keep `api_key` empty to use `OPENROUTER_API_KEY`, and connect a Load Image output to the optional `images` input. All three use the Decisions API; OpenRouter Text remains a text-generation node.
+
+The entire image batch and optional `content_json` parts are included in both ranking and verification. Use existing ComfyUI nodes for resizing, selecting video frames, transcribing audio, or extracting document pages. See [input formats, limits and measured results](docs/decisions.md).
+
 ## First workflow
 
 After setting your TypeSafe key, try judging whether a sentence meets a condition.
