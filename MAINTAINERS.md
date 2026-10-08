@@ -34,9 +34,7 @@
 
 - Publisher `hndr` の公開用APIキーを、リポジトリの Actions secret `REGISTRY_ACCESS_TOKEN` に登録します。TypeSafe・OpenRouterのキーとは別です。
 - バージョン準備ジョブが `main` に push できるよう、リポジトリのActions設定・ブランチ保護を確認します。`contents: write` を指定していても、ブランチ保護によって拒否される場合があります。
-- 既に公開した版が `Active`・`Pending` で、GitHub Releasesがなければ、次の通常公開より先に `sync-notes` を実行します。過去版の履歴を確定し、次の自動生成本文に過去のPR全体が含まれるのを防ぎます。
-
-既存版がすべて `Flagged` の間は、`sync-notes` を実行してもRelease・タグは作られません。起点となるReleaseがないため、最初の自動生成本文には公開済みの変更や `New Contributors` も含まれます。初回公開後、対象版が `Active`・`Pending` なら、更新内容を今回分に絞って記録ファイルとGitHub Releaseの本文を更新し、`sync-notes` でRegistryへ同期してください。対象版も `Flagged` になった場合は、承認後にこの手順を行います。
+- 既に公開した版が `Active`・`Pending`・`Flagged` で、GitHub Releasesがなければ、次の通常公開より先に `sync-notes` を実行します。過去版の履歴を確定し、次の自動生成本文に過去のPR全体が含まれるのを防ぎます。審査状態は変更しません。
 
 ## 公開失敗時の再試行
 
@@ -47,7 +45,7 @@
 | 準備コミットの push 前 | 失敗した実行の **Re-run** で採番からやり直す |
 | 準備コミットの push 後、Registry公開前 | **Run workflow** の `mode = publish`、ブランチ `main` で現行版を公開する。公開ジョブだけが失敗した場合は **Re-run failed jobs** も使える |
 | Registry公開後、対象版がActive・PendingでGitHub Release作成・本文同期に失敗 | **Re-run failed jobs**、または `mode = sync-notes` を使う |
-| Registry公開後、対象版がFlaggedになりRelease作成に失敗 | 再実行でもFlaggedの間は復旧しない。審査への対応後、承認された版を `mode = sync-notes` で補完する。版数の更新・パッケージの再公開は行わない |
+| Registry公開後、対象版がFlaggedになりRelease作成に失敗 | `mode = sync-notes` で履歴・本文を補完する。審査状態、版数、パッケージは変更しない |
 
 手動の `publish` は番号を上げません。準備コミットが入る前に使うと、既存の版数で公開しようとします。準備コミットが入った後に **Re-run all jobs** を使うと、既に準備済みと判定され、公開をスキップしたまま成功扱いになる場合があります。
 
@@ -59,15 +57,17 @@ Actions の **Publish to Comfy registry → Run workflow** で、ブランチ `m
 
 [release-history.json](.github/release-history.json) に記録したコミット・更新内容を使って、既存Registry版のGitHub Releasesを補完します。`0.1.0` と `0.1.1` のコミットは、Registryの配布ZIP内の全ファイルと照合済みです。それ以降は準備コミットから公開したSHAを特定します。
 
-既存のGitHub Releaseがある場合は、その本文をRegistryの `changelog` に反映し、`deprecated` 状態を維持します。本文の変更は先に記録ファイルをPRで確認し、GitHub Releaseの本文も同じ文言に更新してから同期してください。記録ファイルだけの変更では、既存Releaseの本文を上書きしません。
+既存のGitHub Releaseがある場合は、その本文をRegistryの `changelog` に反映し、`deprecated` と審査状態を維持します。本文の変更は先に記録ファイルをPRで確認し、GitHub Releaseの本文も同じ文言に更新してから同期してください。記録ファイルだけの変更では、既存Releaseの本文を上書きしません。
+
+手動の `sync-notes` は `Active`・`Pending`・`Flagged` の既存版を対象にします。[本文更新API](https://docs.comfy.org/registry/api-reference/registry/update-changelog-and-deprecation-status-of-a-node-version)で更新内容だけを同期し、パッケージは再公開しません。削除済み・`Banned` の版はスキップします。
 
 別のコミットを指す既存タグや、下書きのReleaseがある場合は停止します。既存のタグを付け替えたり、下書きを公開したりしません。
 
 ## Registryでの審査状況
 
-Registryへのアップロード成功と、審査・インストール可否は別です。Release作成と本文同期は `Active`・`Pending` の版を対象にし、`Flagged`・削除済み版は対象外にします。`Pending` は審査中で、インストール可能と確認された状態ではありません。
+Registryへのアップロード成功と、審査・インストール可否は別です。通常公開後のRelease自動作成は `Active`・`Pending` を対象にします。手動の履歴補完は `Flagged` も対象にしますが、GitHub Releaseの存在はRegistryでの承認を意味しません。`Pending` は審査中で、インストール可能と確認された状態ではありません。
 
-2026-10-08の確認では、`0.1.0` と `0.1.1` はどちらも `NodeVersionStatusFlagged`、理由は `policy-v0.5: arbitrary-file-read` でした。この状態では `sync-notes` は両版をスキップします。新しい版数の公開だけでは審査の問題は解消しません。承認後に履歴補完を実行してください。
+2026-10-08の確認では、`0.1.0` と `0.1.1` はどちらも `NodeVersionStatusFlagged`、理由は `policy-v0.5: arbitrary-file-read` でした。履歴・更新内容の同期後も、この審査状態は維持します。新しい版数の公開だけでは審査の問題は解消しません。
 
 ## 公開設定の管理
 

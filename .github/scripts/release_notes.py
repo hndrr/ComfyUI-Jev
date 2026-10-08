@@ -117,6 +117,10 @@ def sync_release(github, registry, repository, publisher, node_id, node_version,
             raise ValueError(f"Registry did not retain the changelog for {version}")
         if updated.get("deprecated", False) != node_version.get("deprecated", False):
             raise ValueError(f"Registry did not preserve the deprecated status for {version}")
+        # The update response may omit review status; retrieve the version itself.
+        current = registry("GET", f"/nodes/{quote(node_id, safe='')}/versions/{quote(version, safe='')}")
+        if current.get("status") != node_version.get("status"):
+            raise ValueError(f"Registry did not preserve the review status for {version}")
     if release is None:
         if ref is None:
             github("POST", f"{prefix}/git/refs", {"ref": f"refs/tags/v{version}", "sha": sha})
@@ -128,14 +132,15 @@ def sync_release(github, registry, repository, publisher, node_id, node_version,
     print(f"Shared release notes synchronized for v{version}")
 
 
-def registered_versions(registry, node_id):
+def registered_versions(registry, node_id, include_flagged=False):
     versions = registry("GET", f"/nodes/{quote(node_id, safe='')}/versions")
+    statuses = {"NodeVersionStatusActive", "NodeVersionStatusPending"}
+    if include_flagged:
+        statuses.add("NodeVersionStatusFlagged")
     for version in versions:
-        if version.get("status") not in ("NodeVersionStatusActive", "NodeVersionStatusPending"):
+        if version.get("status") not in statuses:
             print(f"Skipping Registry version {version['version']}: {version.get('status')}")
-    return [version for version in versions if version.get("status") in (
-        "NodeVersionStatusActive", "NodeVersionStatusPending",
-    )]
+    return [version for version in versions if version.get("status") in statuses]
 
 
 def release_commit(version, history):
@@ -149,7 +154,8 @@ def release_commit(version, history):
 
 def backfill(github, registry, repository, publisher, node_id, history, superseded):
     versions = sorted(
-        (item for item in registered_versions(registry, node_id) if item["version"] not in superseded),
+        (item for item in registered_versions(registry, node_id, include_flagged=True)
+         if item["version"] not in superseded),
         key=lambda item: tuple(map(int, item["version"].split("."))),
     )
     # Resolve everything before performing any writes; deleted versions are absent.

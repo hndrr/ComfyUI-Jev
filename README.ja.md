@@ -12,7 +12,7 @@ Jevによる文章の解釈・判定をComfyUIで使うためのカスタムノ�
 | **Jev Skill Choice** | ローカルのSkill（`SKILL.md`）から依頼に合うものを選択 |
 | **OpenRouter Text** | OpenRouterで文章や選択候補を生成 |
 
-[インストール](#インストール) · [APIキーの設定](#apiキーの設定) · [まず試す](#まず試す) · [サンプル](#サンプルワークフロー) · [ノードの詳細](docs/nodes.ja.md)
+[インストール](#インストール) · [APIキーの設定](#apiキーの設定) · [まず試す](#まず試す) · [サンプル](#サンプルワークフロー) · [ノードの詳細](docs/nodes.ja.md) · [リリース履歴](https://github.com/hndrr/ComfyUI-Jev/releases)
 
 ## インストール
 
