@@ -33,7 +33,7 @@ python3 -m unittest discover -s .github/tests -v
 1. [Comfy Registry](https://registry.comfy.org)のPublisher `hndr`で、公開用APIキーを用意します。同じPublisherの既存キーを再利用できます。値を保存していない場合は新しいキーを作成し、保管してください。
 2. [このリポジトリのActions Secrets](https://github.com/hndrr/ComfyUI-Jev/settings/secrets/actions)に、その値を`REGISTRY_ACCESS_TOKEN`として登録します。他のrepoと同じキーを使う場合も、Repository secretはrepoごとに登録が必要です。このキーはノードで使うTypeSafe・OpenRouterのキーとは別です。
 3. Actions設定とブランチ保護で、バージョン準備ジョブが`main`にpushできることを確認します。
-4. 次の通常公開より先に、**Actions → Publish to Comfy registry → Run workflow** で`main`、`mode = sync-notes`を選び、Active・Pendingの既存Registry版のGitHub Releasesを補完します。Flagged・削除済み版はスキップします。起点となるReleaseを作れない場合、初回の自動生成本文には過去のPRも含まれます。初回公開後、対象版がActive・Pendingになったら、記録ファイルとGitHub Releaseの本文を今回分に絞り、`sync-notes`で同期してください。
+4. 次の通常公開より先に、**Actions → Publish to Comfy registry → Run workflow** で`main`、`mode = sync-notes`を選び、Active・Pending・Flaggedの既存Registry版のGitHub Releasesを補完します。履歴と更新内容を整え、審査状態は維持します。削除済み・Bannedの版はスキップします。
 
 ### 次回以降のリリース
 
@@ -41,9 +41,9 @@ python3 -m unittest discover -s .github/tests -v
 
 準備コミットで公開対象を記録し、そのSHAをRegistryに公開して、同じコミットの`vX.Y.Z`タグとGitHub Releaseを作ります。PRタイトルと更新内容は英語にし、同じ本文をRegistryにも渡します。実行はキューで待ち、既に準備済みの変更はスキップします。公開は`hndrr/ComfyUI-Jev`の`main`に限定し、forkでは実行しません。
 
-公開済みパッケージは上書きできません。手動の`mode = publish`は番号を上げずに現行版を公開するため、準備済みで未公開の版に使います。Registry公開後、対象版がActive・Pendingなら、失敗したReleaseジョブだけを再実行するか、`sync-notes`で履歴を補完してください。Release作成前にFlaggedになった場合は、再実行でも復旧しません。審査への対応後、承認された版を再公開せずに`sync-notes`で補完します。準備前に失敗した場合は[再試行の表](../MAINTAINERS.md#公開失敗時の再試行)を参照してください。
+公開済みパッケージは上書きできません。手動の`mode = publish`は番号を上げずに現行版を公開するため、準備済みで未公開の版に使います。Registry公開後、対象版がActive・Pendingなら、失敗したReleaseジョブだけを再実行するか、`sync-notes`で履歴を補完してください。Release作成前にFlaggedになった場合も、審査状態を変えず、再公開せずに`sync-notes`で履歴・更新内容を補完できます。準備前に失敗した場合は[再試行の表](../MAINTAINERS.md#公開失敗時の再試行)を参照してください。
 
-アップロード成功とRegistryの承認は別です。Release作成と本文同期はActive・Pendingを対象にし、Flagged・削除済み版はスキップします。2026-10-08時点では`0.1.0`・`0.1.1`ともにFlaggedで、理由は`policy-v0.5: arbitrary-file-read`です。記録済みの履歴は承認後に補完できます。
+アップロード成功とRegistryの承認は別です。通常公開後のRelease自動作成はActive・Pendingを対象にします。手動の`sync-notes`はFlaggedも対象とし、[本文更新API](https://docs.comfy.org/registry/api-reference/registry/update-changelog-and-deprecation-status-of-a-node-version)で審査・非推奨状態を維持して同期します。削除済み・Bannedの版はスキップします。2026-10-08時点では`0.1.0`・`0.1.1`ともにFlaggedで、理由は`policy-v0.5: arbitrary-file-read`です。履歴補完によって承認されるわけではありません。
 
 [`.comfyignore`](../.comfyignore)でテストとGitHub設定を配布対象から除外しています。実行用モジュール、README、保守手順、ドキュメント、サンプルワークフローは含まれます。
 

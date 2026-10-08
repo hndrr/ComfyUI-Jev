@@ -12,7 +12,7 @@ Custom nodes for using Jev's text interpretation and judgments in ComfyUI. Use n
 | **Jev Skill Choice** | Select local Skills (`SKILL.md` files) for a request |
 | **OpenRouter Text** | Generate text or selection candidates with OpenRouter |
 
-[Installation](#installation) · [API keys](#api-key-setup) · [First workflow](#first-workflow) · [Examples](#example-workflows) · [Node reference](docs/nodes.md)
+[Installation](#installation) · [API keys](#api-key-setup) · [First workflow](#first-workflow) · [Examples](#example-workflows) · [Node reference](docs/nodes.md) · [Releases](https://github.com/hndrr/ComfyUI-Jev/releases)
 
 ## Installation
 
