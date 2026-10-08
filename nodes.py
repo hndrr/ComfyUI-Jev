@@ -88,6 +88,9 @@ class JevInterpret(io.ComfyNode):
         value = values["value"]
         result = value if isinstance(value, str) else s.dumps(value)
         details = {**resolved["fields"]["value"], "model": response.get("model"), "usage": response.get("usage", {})}
+        notices = decisions.context_warnings(context, model_id, provider)
+        if notices:
+            details["warnings"] = notices
         return io.NodeOutput(result, details, s.dumps(response))
 
 

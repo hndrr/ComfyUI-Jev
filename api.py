@@ -143,12 +143,13 @@ async def _post_json(endpoint, payload, key_name, api_key, label, provider):
     api_key = api_key.strip() or os.environ.get(key_name, "").strip()
     if not api_key:
         raise ValueError(f"Enter api_key on the node or set {key_name} in the ComfyUI process environment and restart ComfyUI")
+    body = decisions.encode_payload(payload)
     timeout = aiohttp.ClientTimeout(total=60)
     try:
         async with aiohttp.ClientSession(timeout=timeout) as session:
             for attempt in range(3):
-                async with session.post(endpoint, json=payload,
-                                        headers={"Authorization": f"Bearer {api_key}"}, allow_redirects=False) as response:
+                async with session.post(endpoint, data=body,
+                                        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}, allow_redirects=False) as response:
                     if response.status in (429, 529) and attempt < 2:
                         delay = retry_delay(response.headers.get("Retry-After"), attempt)
                         await response.read()

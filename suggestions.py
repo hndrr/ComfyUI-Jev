@@ -1,6 +1,6 @@
 """Rank descriptions, then verify a short list against complete candidate content."""
 
-from . import api, semantics as s
+from . import api, decisions, semantics as s
 
 
 GATES = {
@@ -41,6 +41,9 @@ async def suggest(state, instructions, candidates, model, provider, api_key,
     questions.update({f"gate_{key}": {"type": "noul", "instructions": text} for key, text in GATES.items()})
     wide = await api.evaluate(state, questions, model, provider=provider, api_key=api_key)
     responses["rank"] = wide
+    notices = decisions.context_warnings(state, model, provider)
+    if notices:
+        details["warnings"] = notices
     answers = wide.get("answers", {})
     # A sole candidate needs suitability checks, but has no ranking alternatives.
     probabilities = (s._answer(answers, "which", "choice", "ranking", criteria)["probabilities"]

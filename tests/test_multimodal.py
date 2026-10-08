@@ -2,7 +2,7 @@ import base64
 from io import BytesIO
 import json
 import unittest
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from PIL import Image
 import torch
@@ -12,10 +12,10 @@ from test_suggestions import CANDIDATES, reply
 from jev_under_test import decisions, media, suggestions
 
 
-def image_url(color="red"):
+def image_url(color="red", format="PNG"):
     output = BytesIO()
-    Image.new("RGB", (8, 8), color).save(output, "PNG")
-    return "data:image/png;base64," + base64.b64encode(output.getvalue()).decode()
+    Image.new("RGB", (8, 8), color).save(output, format)
+    return f"data:image/{format.lower()};base64," + base64.b64encode(output.getvalue()).decode()
 
 
 def part(color="red"):
@@ -86,13 +86,128 @@ class MediaTests(unittest.TestCase):
                     decisions.payload("", {f"q{i}": QUESTION["q"] for i in range(spec["questions"] + 1)}, model, "openrouter")
         with self.assertRaisesRegex(ValueError, "levels"):
             decisions.payload("", {"q": {"type": "score", "criteria": list(range(11))}}, "cloudflare/clef", "openrouter")
-        with patch.object(decisions.warnings, "warn") as warning:
-            body = decisions.payload("x" * 2500, QUESTION, "cloudflare/clef-flash", "openrouter")
-        self.assertIn("truncated upstream", warning.call_args.args[0])
+        body = decisions.payload("x" * 2500, QUESTION, "cloudflare/clef-flash", "openrouter")
         self.assertEqual(body["state"], "x" * 2500)
+
+    def test_png_jpeg_webp_are_preserved(self):
+        for format in ("PNG", "JPEG", "WEBP"):
+            item = {"type": "image_url", "image_url": {"url": image_url(format=format)}}
+            for model in decisions.MODELS:
+                with self.subTest(format=format, model=model):
+                    body = decisions.payload(media.prepare("", json.dumps([item])), QUESTION, model, "openrouter")
+                    self.assertEqual(body["state"], ["", item])
+
+    def test_declared_mime_must_match_decoded_format(self):
+        for format, declared in (("PNG", "jpeg"), ("JPEG", "webp"), ("WEBP", "png")):
+            url = image_url(format=format).replace(f"image/{format.lower()}", f"image/{declared}")
+            context = media.prepare("", json.dumps([{"type": "image_url", "image_url": {"url": url}}]))
+            with self.subTest(format=format), self.assertRaisesRegex(ValueError, "declared MIME"):
+                decisions.payload(context, QUESTION, "cloudflare/clef", "openrouter")
+
+    def test_invalid_and_truncated_images_are_rejected(self):
+        urls = ["data:image/png;base64,not-base64!", "data:image/png;base64," + base64.b64encode(b"not an image").decode()]
+        for format in ("PNG", "JPEG", "WEBP"):
+            header, encoded = image_url(format=format).split(",")
+            data = base64.b64decode(encoded)
+            # Keep enough JPEG structure for Image.open/verify to succeed;
+            # loading its pixels must still reject the missing end of the file.
+            data = data[:-2] if format == "JPEG" else data[:len(data) // 2]
+            urls.append(header + "," + base64.b64encode(data).decode())
+        for url in urls:
+            context = media.prepare("", json.dumps([{"type": "image_url", "image_url": {"url": url}}]))
+            with self.subTest(header=url[:30]), self.assertRaisesRegex(ValueError, "Invalid or oversized image"):
+                decisions.payload(context, QUESTION, "cloudflare/clef", "openrouter")
+
+    def test_budget_counts_unicode_escaping(self):
+        state = "日" * 50000
+        body = {"model": "cloudflare/clef", "state": state, "questions": QUESTION}
+        self.assertLess(len(json.dumps(body, ensure_ascii=False).encode("utf-8")), 256 * 1024)
+        self.assertGreater(len(json.dumps(body).encode("utf-8")), 256 * 1024)
+        with self.assertRaisesRegex(ValueError, "256 KiB"):
+            decisions.payload(state, QUESTION, "cloudflare/clef", "openrouter")
+
+    def test_budget_boundary_includes_provider(self):
+        for model in ("cloudflare/clef", "cloudflare/clef-flash"):
+            for images in (False, True):
+                def context(text):
+                    return media.Context(text, (text, part())) if images else text
+                body = decisions.payload(context("日"), QUESTION, model, "openrouter")
+                text = "日" + "x" * (256 * 1024 - len(json.dumps(body).encode("utf-8")))
+                with self.subTest(model=model, images=images):
+                    body = decisions.payload(context(text), QUESTION, model, "openrouter")
+                    self.assertEqual(len(json.dumps(body).encode("utf-8")), 256 * 1024)
+                    if images:
+                        self.assertEqual(body["provider"], {"only": ["cloudflare"], "allow_fallbacks": False})
+                    with self.assertRaisesRegex(ValueError, "256 KiB"):
+                        decisions.payload(context(text + "x"), QUESTION, model, "openrouter")
+
+    def test_text_warning_threshold_counts_utf8_and_all_text_parts(self):
+        for model in ("cloudflare/clef", "cloudflare/clef-flash"):
+            self.assertEqual(decisions.context_warnings("x" * 2000, model, "openrouter"), [])
+            context = media.prepare("日" * 500, json.dumps([{"type": "text", "text": "日" * 200}, part()]))
+            notice = decisions.context_warnings(context, model, "openrouter")
+            self.assertEqual(len(notice), 1)
+            self.assertIn("not a token count or proof of truncation", notice[0])
+        for provider, model in (("openrouter", "openai/gpt-6-luna-decisions"), ("typesafe", "jev-latest")):
+            self.assertEqual(decisions.context_warnings("x" * 3000, model, provider), [])
 
 
 class NodeMediaTests(unittest.IsolatedAsyncioTestCase):
+    async def test_interpret_warning_is_present_on_every_result(self):
+        with patch.object(api, "evaluate", side_effect=lambda state, questions, *args, **kw: response_for(questions)):
+            for refresh in (0, 1):
+                output = await n.JevInterpret.execute("日" * 700, "Red?", "boolean", {"model": "cloudflare/clef"}, provider="openrouter", refresh=refresh)
+                self.assertEqual(len(output.result[1]["warnings"]), 1)
+                self.assertNotIn("warnings", json.loads(output.result[2]))
+            short = await n.JevInterpret.execute("short", "Red?", "boolean", {"model": "cloudflare/clef"}, provider="openrouter")
+            self.assertNotIn("warnings", short.result[1])
+
+    async def test_suggest_warning_is_present_on_every_result_including_gate_exit(self):
+        for gated in (False, True):
+            with patch.object(api, "evaluate", side_effect=lambda state, questions, *args, **kw: reply(questions, gated=gated)):
+                for refresh in (0, 1):
+                    output = await n.JevInterpret.execute("x" * 2001, "Choose", "suggest", {"model": "cloudflare/clef-flash"}, provider="openrouter", candidates_json=json.dumps(["a", "b"]), refresh=refresh)
+                    self.assertEqual(len(output.result[1]["warnings"]), 1)
+                    self.assertEqual(output.result[1]["reason"], "skill_not_needed" if gated else None)
+
+    async def test_skill_warning_is_present_on_every_result(self):
+        record = {"name": "A", "description": "one", "content": "complete", "path": "skill-a"}
+        with patch.object(n.skills, "read_skills", return_value=[record]), patch.object(api, "evaluate", side_effect=lambda state, questions, *args, **kw: reply(questions)):
+            for refresh in (0, 1):
+                output = await n.JevSkillChoice.execute("x" * 2001, {"directory": "automatic"}, "Choose", {"model": "cloudflare/clef"}, provider="openrouter", refresh=refresh)
+                self.assertEqual(len(output.result[2]["warnings"]), 1)
+        with patch.object(api, "evaluate") as evaluate:
+            _, details, _ = await suggestions.suggest("x" * 2001, "Choose", [], "cloudflare/clef", "openrouter", "")
+        self.assertNotIn("warnings", details)
+        evaluate.assert_not_called()
+
+    async def test_transmitted_bytes_match_final_budget_with_non_ascii_and_image(self):
+        model = "cloudflare/clef"
+        initial = decisions.payload(media.Context("", ("日", part())), QUESTION, model, "openrouter")
+        state = "日" + "x" * (256 * 1024 - len(json.dumps(initial).encode("utf-8")))
+        context = media.Context(state, (state, part()))
+        response = MagicMock(status=200)
+        response.text = AsyncMock(return_value='{"answers":{}}')
+        response.__aenter__ = AsyncMock(return_value=response)
+        response.__aexit__ = AsyncMock(return_value=False)
+        session = MagicMock()
+        session.post.return_value = response
+        session.__aenter__ = AsyncMock(return_value=session)
+        session.__aexit__ = AsyncMock(return_value=False)
+        with patch.object(api.aiohttp, "ClientSession", return_value=session):
+            await api.evaluate(context, QUESTION, model, "openrouter", "test-key")
+            sent = session.post.call_args.kwargs
+            self.assertIsInstance(sent["data"], bytes)
+            self.assertEqual(len(sent["data"]), 256 * 1024)
+            self.assertEqual(json.loads(sent["data"]), {"model": model, "state": [state, part()], "questions": QUESTION, "provider": {"only": ["cloudflare"], "allow_fallbacks": False}})
+            self.assertIn(b"\\u65e5", sent["data"])
+            self.assertEqual(sent["headers"]["Content-Type"], "application/json")
+            self.assertNotIn("json", sent)
+            session.post.reset_mock()
+            with self.assertRaisesRegex(ValueError, "256 KiB"):
+                await api.evaluate(media.Context(state, (state + "x", part())), QUESTION, model, "openrouter", "test-key")
+            session.post.assert_not_called()
+
     async def test_single_candidate_retains_gate_fit_and_applicability_checks(self):
         for model in decisions.MODELS:
             for gated, fit, score in ((True, 0.9, None), (False, 0.1, None),
