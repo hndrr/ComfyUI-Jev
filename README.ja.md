@@ -87,6 +87,14 @@ Jev InterpretとJev Skill Choiceでは、公開カタログからDecisionsモデ
 
 画像バッチ全体と`content_json`の追加情報を、ランキング・候補検証の両方へ渡します。リサイズ、動画のフレーム選択、音声の文字起こし、文書ページの画像化には、既存のComfyUIノードを組み合わせます。[入力形式・制約・実測結果](docs/decisions.ja.md)を参照してください。
 
+![画像入力、OpenRouterのモデル選択、判定出力を備えたJev Interpretノード](docs/images/jev-interpret.png)
+
+*OpenRouter経由でLuna Decisionsを選んだJev Interpret。*
+
+![画像入力、モデル選択、Skill出力を備えたJev Skill Choiceノード](docs/images/jev-skill-choice.png)
+
+*画像入力とSkill選択の設定を備えたJev Skill Choice。*
+
 ## まず試す
 
 TypeSafeのキーを設定したら、文章が指定した条件に当てはまるかを判定してみます。
