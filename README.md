@@ -81,9 +81,9 @@ In PowerShell, use `$env:OPENROUTER_API_KEY="your-openrouter-key"`.
 
 To use OpenRouter for Jev judgments as well, change `provider` to `openrouter` in Jev Interpret or Jev Skill Choice. An empty `api_key` field then uses `OPENROUTER_API_KEY`. When entering a key directly, use the key for the selected provider.
 
-## Image decisions through OpenRouter
+## Text and JSON decisions with optional images
 
-Jev Interpret and Jev Skill Choice load only Decisions models from the public catalog and switch their choices with `provider`. Image-capable options include Luna, Clef, and Clef Flash. Set `provider = openrouter`, keep `api_key` empty to use `OPENROUTER_API_KEY`, and connect a Load Image output to the optional `images` input. Judgments use the Decisions API; OpenRouter Text remains a text-generation node.
+Jev Interpret and Jev Skill Choice use Decisions models to make judgments from text and JSON. They load only Decisions models from the public catalog and switch their choices with `provider`; text-only Decisions models can also be selected. Set `provider = openrouter` and keep `api_key` empty to use `OPENROUTER_API_KEY`. The `images` input is optional: both nodes work with it disconnected. To add images, select an image-capable Decisions model such as Luna, Clef, or Clef Flash, then connect a Load Image output to `images`. Judgments use the Decisions API; OpenRouter Text remains a text-generation node.
 
 The entire image batch and optional `content_json` parts are included in both ranking and verification. Use existing ComfyUI nodes for resizing, selecting video frames, transcribing audio, or extracting document pages. See [input formats, limits and measured results](docs/decisions.md).
 
