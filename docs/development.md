@@ -16,7 +16,7 @@ python custom_nodes/ComfyUI-Jev/.github/scripts/run_node_tests.py --comfy-dir .
 
 The runner selects the actual ComfyUI modules, blocks real network access, and fails on skipped tests or incomplete discovery. Running plain discovery from the Jev repository root can shadow ComfyUI's `nodes.py` with this extension's module. The tests mock paid API responses and learned-model computation; they do not measure real model accuracy.
 
-Release automation has a separate suite that requires only Python 3.11 or later and Git:
+Release automation has a separate suite that requires only Python 3.11 or later and Git. Run it from the **Jev repository root**:
 
 ```sh
 python3 -m unittest discover -s .github/tests -v

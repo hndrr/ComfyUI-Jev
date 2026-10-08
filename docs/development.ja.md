@@ -16,7 +16,7 @@ python custom_nodes/ComfyUI-Jev/.github/scripts/run_node_tests.py --comfy-dir .
 
 このrunnerは実際のComfyUIモジュールを選び、実ネットワーク接続を遮断し、skipやテストの検出不足を失敗と扱います。Jevリポジトリのルートから単純にテストを検出すると、この拡張の`nodes.py`がComfyUI本体のモジュールを隠す場合があります。有料API応答と学習済みモデルの計算はモックであり、実モデルの精度は検証しません。
 
-リリース用スクリプトのテストは、Python 3.11以降とGitだけで実行できます。
+リリース用スクリプトのテストは、**Jevリポジトリのルート**からPython 3.11以降とGitだけで実行できます。
 
 ```sh
 python3 -m unittest discover -s .github/tests -v
