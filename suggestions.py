@@ -35,17 +35,21 @@ async def suggest(state, instructions, candidates, model, provider, api_key,
         return [], details, responses
 
     criteria = {key: item["description"] for key, item in records.items()}
-    questions = {"which": {"type": "choice", "instructions": instructions, "criteria": criteria}}
+    questions = {}
+    if len(criteria) > 1:
+        questions["which"] = {"type": "choice", "instructions": instructions, "criteria": criteria}
     questions.update({f"gate_{key}": {"type": "noul", "instructions": text} for key, text in GATES.items()})
     wide = await api.evaluate(state, questions, model, provider=provider, api_key=api_key)
     responses["rank"] = wide
     answers = wide.get("answers", {})
-    ranked_answer = s._answer(answers, "which", "choice", "ranking", criteria)
+    # A sole candidate needs suitability checks, but has no ranking alternatives.
+    probabilities = (s._answer(answers, "which", "choice", "ranking", criteria)["probabilities"]
+                     if len(criteria) > 1 else {next(iter(criteria)): 1.0})
     gates = {key: s._answer(answers, f"gate_{key}", "noul", f"gate {key}")["noul"] for key in GATES}
     gate = (gates["work"] + gates["procedure"] + 1 - gates["general"]) / 3
-    ranked = sorted(records, key=lambda key: -ranked_answer["probabilities"][key])
+    ranked = sorted(records, key=lambda key: -probabilities[key])
     details.update(gate=gate, gate_answers=gates,
-                   ranking=[{"id": key, "value": records[key]["value"], "probability": ranked_answer["probabilities"][key]} for key in ranked])
+                   ranking=[{"id": key, "value": records[key]["value"], "probability": probabilities[key]} for key in ranked])
     if gate < gate_threshold:
         details["reason"] = "skill_not_needed"
         return [], details, responses
@@ -54,7 +58,7 @@ async def suggest(state, instructions, candidates, model, provider, api_key,
     details["shortlist"] = shortlist
     criteria = {key: {"description": records[key]["description"], "content": records[key]["content"]} for key in shortlist}
     questions = {}
-    if not score_applicability:
+    if not score_applicability and len(criteria) > 1:
         questions["which"] = {"type": "choice", "instructions": {
             "task": instructions,
             "comparison": "Compare what the candidates actually do using their full content. Pick the best fit for this request.",
@@ -82,6 +86,8 @@ async def suggest(state, instructions, candidates, model, provider, api_key,
         details["applicability"] = applicability
         eligible = [key for key in records if key in applicability and fits[key] >= threshold and applicability[key] > 0]
         selected = sorted(eligible, key=lambda key: -applicability[key])[:max_selections]
+    elif len(shortlist) == 1:
+        selected = [key for key in shortlist if fits[key] >= threshold]
     else:
         choice = s._answer(answers, "which", "choice", "verification", criteria)
         # Choice compares alternatives; each independent fit check must also pass.

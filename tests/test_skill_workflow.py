@@ -53,6 +53,8 @@ class SkillWorkflowTests(unittest.IsolatedAsyncioTestCase):
             key.removeprefix('fits_'): question['instructions']['candidate']
             for key, question in questions.items() if key.startswith('fits_')
         }
+        if 'gate_work' in questions and not choices:
+            return reply(questions)
         winner = next(key for key, value in choices.items() if target in json.dumps(value).lower())
         result = reply(questions, winner=winner)
         if 'which' in questions:
@@ -171,6 +173,10 @@ class SkillWorkflowTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(node['widgets_values_named']['directory'], 'automatic')
         self.assertEqual(next(slot['type'] for slot in node['inputs'] if slot['name'] == 'directory'), kind)
         names = list(schema['required']) + list(schema['optional'])
+        self.assertEqual(names[-2:], ['images', 'content_json'])
+        self.assertTrue(all(name in schema['optional'] for name in names[-2:]))
+        # Older workflows omit the new connection-only inputs; widget positions stay fixed.
+        names = names[:-2]
         self.assertEqual([slot['name'] for slot in node['inputs']], names)
         widget_names = names[:names.index('refresh') + 1] + ['control_after_generate'] + names[names.index('refresh') + 1:]
         self.assertEqual(node['widgets_values'], [node['widgets_values_named'][name] for name in widget_names])

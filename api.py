@@ -8,6 +8,7 @@ from email.utils import parsedate_to_datetime
 import aiohttp
 
 from .semantics import candidate_strings, dumps, loads
+from . import decisions
 
 
 ENDPOINT = "https://api.typesafe.ai/v1/systemone"
@@ -75,9 +76,10 @@ def retry_delay(header, attempt):
 
 async def evaluate(state, questions, model, provider="typesafe", api_key=""):
     endpoint, key_name, model = connection(provider, model)
+    payload = decisions.payload(state, questions, model, provider)
     if not questions:
         return {"model": model, "answers": {}, "usage": {"input_tokens": 0, "output_tokens": 0}}
-    return await _post_json(endpoint, {"model": model, "state": state, "questions": questions},
+    return await _post_json(endpoint, payload,
                             key_name, api_key, "Jev", provider)
 
 

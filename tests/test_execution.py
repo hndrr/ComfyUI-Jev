@@ -21,6 +21,7 @@ from comfy_extras.nodes_string import StringExtension
 from comfy_extras.nodes_logic import LogicExtension
 from comfy_extras.nodes_number_convert import NumberConvertExtension
 from comfy_extras.nodes_math import MathExtension
+from comfy_extras.nodes_preview_any import PreviewAny
 from execution import PromptExecutor, validate_prompt
 
 
@@ -41,6 +42,7 @@ class ExecutionTests(unittest.IsolatedAsyncioTestCase):
             for cls in await extension.get_node_list():
                 schema = cls.GET_SCHEMA()
                 nodes.NODE_CLASS_MAPPINGS[schema.node_id] = cls
+        nodes.NODE_CLASS_MAPPINGS["PreviewAny"] = PreviewAny
         self.patches = ExitStack()
         self.addCleanup(self.patches.close)
         self.output_dir = self.patches.enter_context(tempfile.TemporaryDirectory())
@@ -140,6 +142,80 @@ class ExecutionTests(unittest.IsolatedAsyncioTestCase):
             graph["1"]["inputs"]["value"] = "A new brief"
             await self.run_prompt(executor, copy.deepcopy(graph), "brief-change")
             self.assertEqual(generation.await_count, 3)
+
+    async def test_image_and_content_inputs_invalidate_judgment_cache(self):
+        nodes.NODE_CLASS_MAPPINGS["EmptyImage"] = nodes.EmptyImage
+        graph = {
+            "1": {"class_type": "EmptyImage", "inputs": {"width": 8, "height": 8, "batch_size": 1, "color": 0xFF0000}},
+            "2": {"class_type": "JevInterpret", "inputs": {
+                "state": "Classify the image", "instructions": "Is it red?", "task": "boolean",
+                "model": "cloudflare/clef-flash", "provider": "openrouter", "api_key": "", "refresh": 0,
+                "images": ["1", 0], "content_json": '[{"type":"text","text":"First context"}]',
+            }},
+            "3": {"class_type": "PreviewAny", "inputs": {"source": ["2", 0]}},
+        }
+        async def fake(state, questions, model, **kwargs):
+            return response_for(questions)
+        with patch.object(api, "evaluate", side_effect=fake) as judgment:
+            executor = PromptExecutor(Server(), cache_type=False, cache_args={"ram": 0, "ram_inactive": 0})
+            await self.run_prompt(executor, copy.deepcopy(graph), "image-initial")
+            first = judgment.call_args.args[0]
+            await self.run_prompt(executor, copy.deepcopy(graph), "image-cached")
+            self.assertEqual(judgment.await_count, 1)
+            graph["1"]["inputs"]["color"] = 0x0000FF
+            await self.run_prompt(executor, copy.deepcopy(graph), "image-changed")
+            self.assertEqual(judgment.await_count, 2)
+            self.assertNotEqual(judgment.call_args.args[0].parts[-1], first.parts[-1])
+            graph["2"]["inputs"]["content_json"] = '[{"type":"text","text":"Second context"}]'
+            await self.run_prompt(executor, copy.deepcopy(graph), "context-changed")
+            self.assertEqual(judgment.await_count, 3)
+
+    async def test_preprocessed_transcript_document_and_json_string_connections(self):
+        sources = {
+            "transcript": "[00:03.200] Speaker A: 赤い箱を確認してください。\n[00:04.500] Speaker B: 確認しました。",
+            "document": "Page 1 — Inspection\nStatus: accepted\nPage 2 — Notes\nKeep original page order.",
+            "structured": json.dumps({"segments": [{"start": 3.2, "text": "赤い箱"}], "approved": True, "metadata": {"page": 2}}, ensure_ascii=False),
+        }
+        async def fake(state, questions, model, **kwargs):
+            return response_for(questions)
+        with patch.object(api, "evaluate", side_effect=fake) as judgment:
+            for name, source in sources.items():
+                graph = {
+                    "1": {"class_type": "PrimitiveStringMultiline", "inputs": {"value": source}},
+                    "2": {"class_type": "JevInterpret", "inputs": {
+                        "state": ["1", 0], "instructions": "Does the supplied context describe approval?", "task": "boolean",
+                        "model": "openai/gpt-6-luna-decisions", "provider": "openrouter", "api_key": "", "refresh": 0,
+                    }},
+                    "3": {"class_type": "PreviewAny", "inputs": {"source": ["2", 0]}},
+                }
+                executor = PromptExecutor(Server(), cache_type=False, cache_args={"ram": 0, "ram_inactive": 0})
+                await self.run_prompt(executor, graph, name)
+                self.assertEqual(judgment.call_args.args[0], source)
+
+    async def test_video_frame_batch_and_timestamp_connections(self):
+        nodes.NODE_CLASS_MAPPINGS["EmptyImage"] = nodes.EmptyImage
+        timestamps = '{"frames":[{"index":0,"seconds":0},{"index":1,"seconds":1.5}],"subtitle":"Check both frames"}'
+        additions = '[{"type":"text","text":"The frame order matches the JSON timestamps."}]'
+        graph = {
+            "1": {"class_type": "PrimitiveStringMultiline", "inputs": {"value": timestamps}},
+            "2": {"class_type": "EmptyImage", "inputs": {"width": 8, "height": 8, "batch_size": 2, "color": 0xFF0000}},
+            "3": {"class_type": "PrimitiveStringMultiline", "inputs": {"value": additions}},
+            "4": {"class_type": "JevInterpret", "inputs": {
+                "state": ["1", 0], "images": ["2", 0], "content_json": ["3", 0],
+                "instructions": "Are both selected frames red?", "task": "boolean", "model": "cloudflare/clef-flash",
+                "provider": "openrouter", "api_key": "", "refresh": 0,
+            }},
+            "5": {"class_type": "PreviewAny", "inputs": {"source": ["4", 0]}},
+        }
+        async def fake(state, questions, model, **kwargs):
+            return response_for(questions)
+        with patch.object(api, "evaluate", side_effect=fake) as judgment:
+            executor = PromptExecutor(Server(), cache_type=False, cache_args={"ram": 0, "ram_inactive": 0})
+            await self.run_prompt(executor, graph, "video-frames-and-metadata")
+        context = judgment.call_args.args[0]
+        self.assertEqual(context.original, timestamps)
+        self.assertEqual(context.parts[:2], (timestamps, "The frame order matches the JSON timestamps."))
+        self.assertEqual(len(context.parts[2:]), 2)
 
     async def test_saved_workflows_match_executable_examples(self):
         paths = list((ROOT / "examples").glob("0[1-3]*.workflow.json"))

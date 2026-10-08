@@ -1,7 +1,7 @@
 from comfy_api.latest import ComfyExtension, io
 import folder_paths
 
-from . import api, model_catalog, semantics as s, skills, suggestions
+from . import api, decisions, media, model_catalog, semantics as s, skills, suggestions
 
 
 def jev_connection_inputs():
@@ -10,8 +10,9 @@ def jev_connection_inputs():
             io.DynamicCombo.Option("jev-latest", []),
             io.DynamicCombo.Option("jev-preview", []),
             io.DynamicCombo.Option("jev-1.13.0", []),
+            *[io.DynamicCombo.Option(model_id, []) for model_id in decisions.MODELS],
             io.DynamicCombo.Option("custom", [io.String.Input("model_id", default="jev-1.13.0")]),
-        ]),
+        ], tooltip="Use provider=openrouter for Luna Decisions and Clef. Existing Jev models keep their usual provider."),
         io.Combo.Input("provider", options=["typesafe", "openrouter"], default="typesafe"),
         io.String.Input("api_key", default="", tooltip="Empty uses the provider's environment variable. Entered keys are saved in workflows; remove before sharing."),
         io.Int.Input("refresh", default=0, min=0, control_after_generate=io.ControlAfterGenerate.fixed, tooltip="Keep fixed to reuse results. Change to request a new judgment."),
@@ -27,12 +28,20 @@ def candidate_inputs():
     ]
 
 
+def context_inputs():
+    return [
+        io.Image.Input("images", optional=True, tooltip="Entire IMAGE batch, in order. Luna: 128 images; Clef: 4. Resize/select frames with existing nodes."),
+        io.String.Input("content_json", force_input=True, optional=True,
+                        tooltip="JSON array of text and image_url parts. Images must be PNG/JPEG/WebP data URLs. Order: state/prompt, content_json, IMAGE batch."),
+    ]
+
+
 class JevInterpret(io.ComfyNode):
     @classmethod
     def define_schema(cls):
         return io.Schema(
             node_id="JevInterpret", display_name="Jev Interpret", category="Jev",
-            description="Judge text using instructions and plain-text candidates. The selected candidate can connect directly to existing text inputs. No schema JSON required.",
+            description="Judge text and optional image context using instructions and plain-text candidates. The selected candidate connects directly to existing text inputs.",
             inputs=[
                 io.String.Input("state", multiline=True, default="I want a sense of luxury that feels warm and approachable."),
                 io.String.Input("instructions", multiline=True, default="Choose the candidate that best meets the creative intent."),
@@ -47,6 +56,7 @@ class JevInterpret(io.ComfyNode):
                              tooltip="Suggest mode: maximum accepted candidates. May return none."),
                 io.Float.Input("gate_threshold", default=0.3, min=0, max=1, step=0.01, optional=True, advanced=True,
                                tooltip="Suggest mode: minimum need for specialized guidance before full-content verification."),
+                *context_inputs(),
             ],
             outputs=[io.String.Output(display_name="result"), io.Dict.Output(display_name="details"), io.String.Output(display_name="response_json")],
         )
@@ -54,14 +64,15 @@ class JevInterpret(io.ComfyNode):
     @classmethod
     async def execute(cls, state, instructions, task, model, provider="typesafe", api_key="", refresh=0,
                       threshold=0.5, candidates=None, candidates_json=None, shortlist_size=3, max_selections=1,
-                      gate_threshold=0.3):
+                      gate_threshold=0.3, images=None, content_json=None):
         model_id = model["model_id"] if model["model"] == "custom" else model["model"]
         if not model_id.strip():
             raise ValueError("Model ID cannot be empty")
+        context = media.prepare(state, content_json, images)
         if task == "suggest":
             candidates = s.text_candidates(candidates, candidates_json)
             values, details, responses = await suggestions.suggest(
-                state, instructions, candidates, model_id, provider, api_key,
+                context, instructions, candidates, model_id, provider, api_key,
                 shortlist_size, max_selections, gate_threshold, threshold,
             )
             return io.NodeOutput(s.dumps(values), details, s.dumps(responses))
@@ -69,7 +80,7 @@ class JevInterpret(io.ComfyNode):
             "task": task, "candidates": candidates or {}, "candidates_json": candidates_json,
         }, threshold)
         questions, plans = s.compile_questions(state, schema)
-        response = await api.evaluate(state, questions, model_id, provider=provider, api_key=api_key)
+        response = await api.evaluate(context, questions, model_id, provider=provider, api_key=api_key)
         judgments = s.collect_judgments(response, plans)
         resolved, values = s.resolve(judgments, bindings)
         if "value" not in values:
@@ -85,7 +96,7 @@ class JevSkillChoice(io.ComfyNode):
     def define_schema(cls):
         return io.Schema(
             node_id="JevSkillChoice", display_name="Jev Skill Choice", category="Jev",
-            description="Select guidance for a prompt from installed skills. Discovers shared agent and Claude skill directories. Outputs selected contents and priorities.",
+            description="Select guidance for a prompt and optional image context from installed skills. Discovers shared agent and Claude skill directories. Outputs selected contents and priorities.",
             inputs=[
                 io.String.Input("prompt", multiline=True, default="Write a detailed image prompt for a warm, approachable perfume advertisement."),
                 io.DynamicCombo.Input("directory", options=[
@@ -104,6 +115,7 @@ class JevSkillChoice(io.ComfyNode):
                                tooltip="Minimum fit required for each selected skill."),
                 io.Float.Input("gate_threshold", default=0.3, min=0, max=1, step=0.01, optional=True, advanced=True,
                                tooltip="Minimum need for specialized guidance before evaluating full skill contents."),
+                *context_inputs(),
             ],
             outputs=[io.String.Output(display_name="text"), io.Dict.Output(display_name="skills"),
                      io.Dict.Output(display_name="details"), io.String.Output(display_name="response_json")],
@@ -117,10 +129,12 @@ class JevSkillChoice(io.ComfyNode):
 
     @classmethod
     async def execute(cls, prompt, directory, instructions, model, provider="typesafe", api_key="", refresh=0,
-                      max_selections=3, strength_mode="automatic", shortlist_size=5, threshold=0.5, gate_threshold=0.3):
+                      max_selections=3, strength_mode="automatic", shortlist_size=5, threshold=0.5, gate_threshold=0.3,
+                      images=None, content_json=None):
         model_id = model["model_id"] if model["model"] == "custom" else model["model"]
         if not model_id.strip():
             raise ValueError("Model ID cannot be empty")
+        context = media.prepare(prompt, content_json, images)
         if strength_mode not in ("automatic", "uniform"):
             raise ValueError("strength_mode must be automatic or uniform")
         records = skills.read_skills(directory, folder_paths.base_path)
@@ -128,7 +142,7 @@ class JevSkillChoice(io.ComfyNode):
                        "value": item["path"]} for item in records]
         automatic = strength_mode == "automatic"
         values, details, responses = await suggestions.suggest(
-            prompt, instructions, candidates, model_id, provider, api_key,
+            context, instructions, candidates, model_id, provider, api_key,
             shortlist_size, max_selections, gate_threshold, threshold, score_applicability=automatic,
         )
         by_path = {item["path"]: item for item in records}
