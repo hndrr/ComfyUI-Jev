@@ -117,7 +117,9 @@ def sync_release(github, registry, repository, publisher, node_id, node_version,
             raise ValueError(f"Registry did not retain the changelog for {version}")
         if updated.get("deprecated", False) != node_version.get("deprecated", False):
             raise ValueError(f"Registry did not preserve the deprecated status for {version}")
-        if updated.get("status") != node_version.get("status"):
+        # The update response may omit review status; retrieve the version itself.
+        current = registry("GET", f"/nodes/{quote(node_id, safe='')}/versions/{quote(version, safe='')}")
+        if current.get("status") != node_version.get("status"):
             raise ValueError(f"Registry did not preserve the review status for {version}")
     if release is None:
         if ref is None:

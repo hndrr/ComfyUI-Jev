@@ -60,6 +60,8 @@ class Registry:
         self.calls.append((method, path, data))
         if method == "GET" and path == "/nodes/comfyui-jev/versions":
             return self.versions
+        if method == "GET" and path.startswith("/nodes/comfyui-jev/versions/"):
+            return next(version.copy() for version in self.versions if path.endswith("/" + version["version"]))
         if method == "PUT":
             for version in self.versions:
                 if path == f"/publishers/hndr/nodes/comfyui-jev/versions/{version['id']}":
@@ -90,7 +92,7 @@ class ReleaseNotesTests(unittest.TestCase):
         self.assertEqual(self.github.refs["v1.2.2"]["object"]["sha"], SHA)
         self.assertEqual(release["target_commitish"], SHA)
         self.assertTrue(self.item["deprecated"])
-        self.assertEqual([call[0] for call in self.registry.calls], ["PUT"])
+        self.assertEqual([call[0] for call in self.registry.calls], ["PUT", "GET"])
 
     def test_rerun_does_not_create_or_update_twice(self):
         self.sync()
@@ -217,11 +219,23 @@ class ReleaseNotesTests(unittest.TestCase):
 
     def test_changed_review_status_stops_before_github_release_creation(self):
         self.item["status"] = "NodeVersionStatusFlagged"
-        def changed_status(*args, **kwargs):
-            return dict(self.registry(*args, **kwargs), status="NodeVersionStatusActive")
+        def changed_status(method, *args, **kwargs):
+            response = self.registry(method, *args, **kwargs)
+            return dict(response, status="NodeVersionStatusActive") if method == "GET" else response
         with self.assertRaisesRegex(ValueError, "preserve the review status"):
             notes.sync_release(self.github, changed_status, REPO, "hndr", "comfyui-jev", self.item, SHA, "Notes")
         self.assertFalse(any(call[0] == "POST" for call in self.github.calls))
+
+    def test_partial_update_response_still_checks_review_status(self):
+        self.item["status"] = "NodeVersionStatusFlagged"
+        def partial_update(method, *args, **kwargs):
+            response = self.registry(method, *args, **kwargs)
+            return {key: response[key] for key in ("changelog", "deprecated")} if method == "PUT" else response
+        with contextlib.redirect_stdout(io.StringIO()):
+            notes.sync_release(self.github, partial_update, REPO, "hndr", "comfyui-jev", self.item, SHA, "Notes")
+        self.assertEqual(self.github.releases["v1.2.2"]["body"], "Notes")
+        self.assertEqual(self.item["status"], "NodeVersionStatusFlagged")
+        self.assertTrue(any(call[0] == "GET" and call[1].endswith("/versions/1.2.2") for call in self.registry.calls))
 
     def test_pending_versions_can_sync_without_becoming_approved(self):
         self.item["status"] = "NodeVersionStatusPending"
