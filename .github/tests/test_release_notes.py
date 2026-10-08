@@ -181,11 +181,11 @@ class ReleaseNotesTests(unittest.TestCase):
             self.assertEqual(item["changelog"], self.github.releases[f"v{item['version']}"]["body"])
             self.assertEqual(item["deprecated"], item["version"] == "0.1.0")
 
-    def test_backfill_skips_flagged_deleted_and_superseded_versions(self):
+    def test_backfill_skips_deleted_banned_and_superseded_versions(self):
         history = {"0.1.1": {"sha": SHA, "body": "- Add MIT licensing."}}
         registry = Registry([
             node("0.1.1"),
-            dict(node("0.1.0"), status="NodeVersionStatusFlagged"),
+            dict(node("0.1.0"), status="NodeVersionStatusBanned"),
             dict(node("0.0.9"), status="NodeVersionStatusDeleted"),
             node("0.0.8"),
         ])
@@ -193,6 +193,35 @@ class ReleaseNotesTests(unittest.TestCase):
             notes.backfill(self.github, registry, REPO, "hndr", "comfyui-jev", history, {"0.0.8": "0.1.1"})
         self.assertEqual(set(self.github.releases), {"v0.1.1"})
         self.assertEqual([item["changelog"] for item in registry.versions[1:]], ["", "", ""])
+
+    def test_normal_release_creation_excludes_flagged_versions(self):
+        self.item["status"] = "NodeVersionStatusFlagged"
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(notes.registered_versions(self.registry, "comfyui-jev"), [])
+        self.assertFalse(any(call[0] == "PUT" for call in self.registry.calls))
+
+    def test_backfill_includes_flagged_versions_without_changing_review_or_package(self):
+        history = {"0.1.1": {"sha": SHA, "body": "- Add MIT licensing."}}
+        item = dict(node("0.1.1", deprecated=True), status="NodeVersionStatusFlagged",
+                    downloadUrl="https://cdn.comfy.org/hndr/comfyui-jev/0.1.1/node.zip")
+        original = item.copy()
+        registry = Registry([item])
+        with patch.object(notes, "git", return_value='[project]\nversion = "0.1.1"\n'), contextlib.redirect_stdout(io.StringIO()):
+            notes.backfill(self.github, registry, REPO, "hndr", "comfyui-jev", history, {})
+        self.assertEqual(item, dict(original, changelog=history["0.1.1"]["body"]))
+        self.assertEqual(self.github.releases["v0.1.1"]["body"], item["changelog"])
+        self.assertEqual(self.github.refs["v0.1.1"]["object"]["sha"], SHA)
+        writes = [call for call in registry.calls if call[0] != "GET"]
+        self.assertEqual(writes, [("PUT", "/publishers/hndr/nodes/comfyui-jev/versions/uuid-0.1.1",
+                                  {"changelog": item["changelog"], "deprecated": True})])
+
+    def test_changed_review_status_stops_before_github_release_creation(self):
+        self.item["status"] = "NodeVersionStatusFlagged"
+        def changed_status(*args, **kwargs):
+            return dict(self.registry(*args, **kwargs), status="NodeVersionStatusActive")
+        with self.assertRaisesRegex(ValueError, "preserve the review status"):
+            notes.sync_release(self.github, changed_status, REPO, "hndr", "comfyui-jev", self.item, SHA, "Notes")
+        self.assertFalse(any(call[0] == "POST" for call in self.github.calls))
 
     def test_pending_versions_can_sync_without_becoming_approved(self):
         self.item["status"] = "NodeVersionStatusPending"
