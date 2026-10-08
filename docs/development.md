@@ -45,7 +45,7 @@ Published packages cannot be overwritten. A manual `mode = publish` run publishe
 
 Upload success does not establish Registry approval. Release creation and notes synchronization accept Active or Pending versions and skip Flagged/deleted versions. As of 2026-10-08, both `0.1.0` and `0.1.1` are Flagged with reason `policy-v0.5: arbitrary-file-read`; their recorded history can be backfilled after approval.
 
-[`.comfyignore`](../.comfyignore) excludes tests, maintainer instructions, and GitHub configuration from the published archive. Runtime modules, READMEs, documentation, and example workflows remain included.
+[`.comfyignore`](../.comfyignore) excludes tests and GitHub configuration from the published archive. Runtime modules, READMEs, maintainer instructions, documentation, and example workflows remain included.
 
 Publishing specifications: [Official publishing guide](https://docs.comfy.org/registry/publishing) / [Metadata specification](https://docs.comfy.org/registry/specifications)
 
