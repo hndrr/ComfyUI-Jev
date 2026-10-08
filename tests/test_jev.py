@@ -152,7 +152,7 @@ class TransportTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(sleep.await_count, 2)
             call = session.post.call_args
             self.assertEqual(call.args[0], api.ENDPOINT)
-            self.assertEqual(call.kwargs["json"]["state"], "request")
+            self.assertEqual(json.loads(call.kwargs["data"])["state"], "request")
             self.assertEqual(call.kwargs["headers"]["Authorization"], "Bearer test-secret")
             self.assertFalse(call.kwargs["allow_redirects"])
 
@@ -181,7 +181,7 @@ class TransportTests(unittest.IsolatedAsyncioTestCase):
             )
         call = session.post.call_args
         self.assertEqual(call.args[0], "https://openrouter.ai/api/alpha/decisions")
-        self.assertEqual(call.kwargs["json"], {"model": "~typesafe/jev-latest", "state": state, "questions": questions})
+        self.assertEqual(json.loads(call.kwargs["data"]), {"model": "~typesafe/jev-latest", "state": state, "questions": questions})
         self.assertEqual(call.kwargs["headers"]["Authorization"], "Bearer node-key")
         self.assertFalse(call.kwargs["allow_redirects"])
         self.assertEqual(output.result[0], "soft\nwindow light")
@@ -316,7 +316,7 @@ class GenerationTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(call.args[0], api.CHAT_ENDPOINT)
             self.assertEqual(call.kwargs["headers"]["Authorization"], "Bearer shared-key")
             self.assertFalse(call.kwargs["allow_redirects"])
-            sent = call.kwargs["json"]
+            sent = json.loads(call.kwargs["data"])
             self.assertEqual(sent["model"], "vendor/my-model")
             self.assertEqual(sent["messages"][0], {"role": "system", "content": "Be specific"})
             self.assertEqual(sent["messages"][-1], {"role": "user", "content": "Write image prompts"})
@@ -351,8 +351,8 @@ class GenerationTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(output.result[0], content)
         sent = session.post.call_args.kwargs
         self.assertEqual(sent["headers"]["Authorization"], "Bearer direct-key")
-        self.assertNotIn("response_format", sent["json"])
-        self.assertEqual(sent["json"]["messages"], [{"role": "user", "content": "Write"}])
+        self.assertNotIn("response_format", json.loads(sent["data"]))
+        self.assertEqual(json.loads(sent["data"])["messages"], [{"role": "user", "content": "Write"}])
 
     def test_incomplete_or_invalid_generations_fail_explicitly(self):
         malformed = [completion_for(""), {}, {"choices": [None]}]

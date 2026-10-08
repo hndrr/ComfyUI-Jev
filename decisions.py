@@ -4,7 +4,6 @@ import base64
 import binascii
 from io import BytesIO
 import json
-import warnings
 
 from .media import Context
 
@@ -15,6 +14,25 @@ MODELS = {
     "cloudflare/clef": {"images": 4, "questions": 64, "provider": "cloudflare"},
     "cloudflare/clef-flash": {"images": 4, "questions": 64, "provider": "cloudflare"},
 }
+
+CLEF_REQUEST_BUDGET = 256 * 1024
+
+
+def encode_payload(body):
+    """Serialize exactly the bytes used for both the size check and HTTP body."""
+    return json.dumps(body).encode("utf-8")
+
+
+def context_warnings(state, model, provider):
+    """Conservative text-length notices for each node result, not token counts."""
+    if provider != "openrouter" or MODELS.get(model, {}).get("provider") != "cloudflare":
+        return []
+    if isinstance(state, Context):
+        state = list(state.parts)
+    text = state if isinstance(state, str) else "\n".join(p for p in state if isinstance(p, str)) if isinstance(state, list) else json.dumps(state, ensure_ascii=False)
+    if len(text.encode("utf-8")) <= 2000:
+        return []
+    return ["The OpenRouter Decisions guide describes upstream truncation of Clef state text at about 2,000 tokens. This context exceeds the conservative 2,000 UTF-8 byte warning threshold; this is not a token count or proof of truncation. Shorten the context or use Luna Decisions if needed. No local truncation is performed."]
 
 
 def _image(part):
@@ -31,6 +49,9 @@ def _image(part):
             if image.format != formats[header]:
                 raise ValueError("Image data does not match its declared MIME type")
             image.verify()
+        # verify() alone can accept a JPEG with a truncated pixel stream.
+        with Image.open(BytesIO(data)) as image:
+            image.load()
     except (binascii.Error, OSError, UnidentifiedImageError, Image.DecompressionBombError):
         raise ValueError("Invalid or oversized image data URL") from None
     return len(encoded)
@@ -70,13 +91,10 @@ def payload(state, questions, model, provider):
                     raise ValueError("Clef choice questions require 2–255 candidates")
                 if question.get("type") == "score" and not 2 <= count <= 10:
                     raise ValueError("Clef score questions require 2–10 levels")
-            text = state if isinstance(state, str) else "\n".join(p for p in state if isinstance(p, str)) if isinstance(state, list) else json.dumps(state, ensure_ascii=False)
-            if len(text.encode("utf-8")) > 2000:
-                warnings.warn("The Cloudflare route for Clef reads only about the first 2,000 state text tokens. This context exceeds 2,000 UTF-8 bytes and may be truncated upstream; shorten it or use Luna Decisions. No local truncation is performed.", UserWarning, stacklevel=2)
-            if len(json.dumps(result, ensure_ascii=False).encode("utf-8")) > 4 * 65536:
-                raise ValueError("Clef request exceeds the conservative 256 KiB encoded request budget; resize/recompress images with existing ComfyUI nodes")
     if image_parts:
         # The public guide describes these native routes. Cheaper third-party routing
         # returned text-like guesses in the recorded Clef image/control experiment.
         result["provider"] = {"only": [spec["provider"]], "allow_fallbacks": False}
+    if spec and spec["provider"] == "cloudflare" and len(encode_payload(result)) > CLEF_REQUEST_BUDGET:
+        raise ValueError("Clef request exceeds the local conservative 256 KiB encoded request budget; shorten text or resize/recompress images with existing ComfyUI nodes")
     return result

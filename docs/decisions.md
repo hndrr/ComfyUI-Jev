@@ -23,9 +23,7 @@ The adapter sends text strings and image parts directly in the Decisions `state`
 
 Audio, video, and file parts are rejected before sending. Use existing transcription nodes for audio, frame selection for video, and text/page extraction for documents. Connect transcripts or timestamps as text and selected frames/pages as IMAGE. This does not preserve native video timing or audio information automatically. Numeric extraction still refers only to the original state text and its original offsets.
 
-## Limits and routing
-
-### Connecting existing preprocessing nodes
+## Connecting existing preprocessing nodes
 
 | Source output | Connect to | What is sent |
 | --- | --- | --- |
@@ -40,7 +38,11 @@ For example, connect a transcription node's STRING output directly to `state` an
 
 These paths use existing inputs and ComfyUI output types; no additional ASR, decoder, summarizer, or conversion service is introduced. A DICT output needs serialization to STRING upstream. Native audio/video/PDF uploads are not claimed. Actual ComfyUI execution tests cover STRING connections for transcripts, extracted documents and nested JSON, plus an IMAGE frame batch with separately connected timestamp/context text. External transcription, decoding and document-extraction quality is outside those tests. Long transcripts remain subject to the provider limits below.
 
-Cloudflare's guide notes a roughly 2,000-token state-text limit with upstream truncation and an encoded-size estimate against a 65,536-token window. The extension warns above 2,000 UTF-8 text bytes as an early, conservative signal—not a tokenizer count—and rejects Cloudflare payloads above a conservative 256 KiB wire budget. It never truncates text or resizes images locally. Shorten context or use a different model when these constraints matter.
+## Limits and routing
+
+The [OpenRouter Decisions-specific guide](https://openrouter.ai/docs/guides/community/multimodal-decisions#limits) describes roughly 2,000 state-text tokens being read on the Cloudflare route and an encoded-image-size estimate against a 65,536-token window. Above 2,000 UTF-8 text bytes, each Jev Interpret result (including `suggest`) and Jev Skill Choice result includes a conservative notice in `details.warnings`. This byte threshold is neither a token count nor proof of upstream truncation; it is checked again on every execution.
+
+For Clef and Clef Flash, the extension also enforces a local conservative 256 KiB budget on the complete serialized JSON request, including escaped non-ASCII text, questions, images and provider routing. The checked encoding is exactly the HTTP request body. This local budget is not the upstream API's exact size limit. The extension never truncates text or resizes images locally. Shorten context or use a different model when these constraints matter.
 
 The adapter also checks upstream question/choice/score limits: [OpenAI Decisions](https://developers.openai.com/api/docs/guides/decisions) permits 200 questions; [Clef](https://developers.cloudflare.com/workers-ai/models/clef/) and [Clef Flash](https://developers.cloudflare.com/workers-ai/models/clef-flash/) permit 64 questions, 2–255 choice candidates and 2–10 score levels. Candidate expansion and skill shortlists can produce multiple questions. A single candidate skips comparison questions while retaining the need, fit, and optional applicability checks.
 
@@ -52,7 +54,7 @@ Image requests explicitly select OpenAI for Luna and Cloudflare for Clef, throug
 
 Ten total authorized calls used a synthetic 64×64 PNG with six randomly colored circles, with no answer key in the request text. Success required all six correct with probability ≥0.8, plus at least four increases ≥0.5 over the same model/provider's image-free control.
 
-The four additional calls were fixed in advance: Cloudflare Clef control/image, then OpenAI Luna control/image. They exercised commit `d30bdd3`'s actual `media.prepare → api.evaluate → _post_json` path, including IMAGE tensor encoding. The test harness pinned the control to the image's provider, applied unit-price filters, and blocked retries before transmission. These test guards did not change product code. Re-encoding the original 312-byte PNG produced a pixel-identical 455-byte PNG.
+The four additional calls were fixed in advance: Cloudflare Clef control/image, then OpenAI Luna control/image. They exercised the actual `media.prepare → api.evaluate → _post_json` path, including IMAGE tensor encoding. The Python runtime source used for those calls is byte-identical to the source published in [commit `8a598354`](https://github.com/hndrr/ComfyUI-Jev/commit/8a598354def6b1d34ddf2381515996ae87fa570c); this equivalence excludes documentation, which was updated after the calls. Subsequent review changes have offline regression coverage and were not tested with additional live calls. The test harness pinned the control to the image's provider, applied unit-price filters, and blocked retries before transmission. These test guards did not change product code. Re-encoding the original 312-byte PNG produced a pixel-identical 455-byte PNG.
 
 | Model / actual provider | Result |
 | --- | --- |
