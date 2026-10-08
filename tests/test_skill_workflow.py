@@ -53,6 +53,8 @@ class SkillWorkflowTests(unittest.IsolatedAsyncioTestCase):
             key.removeprefix('fits_'): question['instructions']['candidate']
             for key, question in questions.items() if key.startswith('fits_')
         }
+        if 'gate_work' in questions and not choices:
+            return reply(questions)
         winner = next(key for key, value in choices.items() if target in json.dumps(value).lower())
         result = reply(questions, winner=winner)
         if 'which' in questions:
@@ -143,6 +145,18 @@ class SkillWorkflowTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual([(item['name'], item['strength']) for item in bundle['skills']], [('music', 1.8), ('copy', 0.6)])
         self.assertEqual(self.transport.await_count, 4)
 
+    async def test_catalog_and_saved_custom_models_validate_in_skill_workflow(self):
+        metadata = {"input_modalities": ["text"], "output_modalities": ["decisions"]}
+        with patch.dict(n.model_catalog.decision_models, {"vendor/new-decision": metadata, "vendor/saved-decision": metadata}), patch.object(n.model_catalog, "decision_model_ids", ("vendor/new-decision",)):
+            for model in ("vendor/new-decision", "vendor/saved-decision", "custom"):
+                self.graph['2']['inputs']['provider'] = 'openrouter'
+                self.graph['2']['inputs']['model'] = model
+                if model == 'custom':
+                    self.graph['2']['inputs']['model.model_id'] = 'vendor/saved-custom'
+                text, _ = await self.run_graph('Write advertising copy')
+                self.assertIn('COPY GUIDANCE', text)
+                self.assertEqual(self.transport.call_args.args[2], 'vendor/saved-custom' if model == 'custom' else model)
+
     def test_saved_workflow_matches_node_inputs_and_links(self):
         workflow = json.loads((ROOT / 'examples/04_skill_choice.workflow.json').read_text())
         graph = json.loads((ROOT / 'examples/04_skill_choice.api.json').read_text())
@@ -171,6 +185,10 @@ class SkillWorkflowTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(node['widgets_values_named']['directory'], 'automatic')
         self.assertEqual(next(slot['type'] for slot in node['inputs'] if slot['name'] == 'directory'), kind)
         names = list(schema['required']) + list(schema['optional'])
+        self.assertEqual(names[-2:], ['images', 'content_json'])
+        self.assertTrue(all(name in schema['optional'] for name in names[-2:]))
+        # Older workflows omit the new connection-only inputs; widget positions stay fixed.
+        names = names[:-2]
         self.assertEqual([slot['name'] for slot in node['inputs']], names)
         widget_names = names[:names.index('refresh') + 1] + ['control_after_generate'] + names[names.index('refresh') + 1:]
         self.assertEqual(node['widgets_values'], [node['widgets_values_named'][name] for name in widget_names])

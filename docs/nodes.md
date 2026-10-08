@@ -24,9 +24,9 @@ When both are connected, individually connected candidates come first in input-n
 
 For `boolean` and `multi_choice`, `threshold` defaults to 0.5 and uses a `>=` comparison. Change it in the advanced settings. Score confidence is not mixed into the evaluation value. Use standard Convert Number nodes when you need a number, or Compare Text and Switch nodes for conditional branching.
 
-Outputs are `result` (STRING), `details` (DICT containing judgment details), and `response_json` (STRING containing the raw API response). You can also pass JSON analysis results to `state` as text. This node does not send images, audio, or video directly to Jev.
+Outputs are `result` (STRING), `details` (DICT containing judgment details), and `response_json` (STRING containing the raw API response). You can also pass JSON analysis results to `state` as text. For OpenRouter Decisions models with catalog-verified image input support, the optional `images` and `content_json` inputs add image context; see [multimodal inputs](decisions.md). Original Jev models remain text-only. Number extraction still uses only the original `state`, not OCR or additional text parts.
 
-The default Jev model is `jev-latest`. TypeSafe also supports `jev-preview`, `jev-1.13.0`, and custom IDs. With OpenRouter, `jev-latest` is sent as `~typesafe/jev-latest` and `jev-1.13.0` as `typesafe/jev-1.13`. OpenRouter does not support `jev-preview`. Select `custom` to specify another ID.
+The default Jev model is `jev-latest`. TypeSafe also supports `jev-preview`, `jev-1.13.0`, and custom IDs. With OpenRouter, `jev-latest` is sent as `~typesafe/jev-latest` and `jev-1.13.0` as `typesafe/jev-1.13`. OpenRouter does not support `jev-preview`. The OpenRouter dropdown lists only models whose catalog output modalities include `decisions`; it switches with `provider`. It refreshes at startup and uses a separate saved Decisions catalog on failure. Existing saved selections and legacy `custom` IDs remain compatible, but `custom` is not offered for new OpenRouter choices. See [model discovery and image support](decisions.md#model-discovery).
 
 ### Candidate suggestions
 
@@ -118,3 +118,5 @@ Connect `text` to OpenRouter Text's `system` input to use the selected guidance 
 The nodes use ComfyUI's cache. Changing only the image generation seed, width, or height does not trigger another text generation or Jev request. Changing only Jev's judgment instructions can reuse previously generated candidates. Change a node's `refresh` to request a new result from that node on the next run.
 
 Changes to a request node's own inputs, model, key, thresholds, or other settings invalidate its cached result. Each API request has a 60-second timeout. HTTP 429 / 529 responses are retried up to twice according to `Retry-After`. Other failures and malformed responses are returned as errors.
+
+The same optional `images` and `content_json` inputs are available on Jev Skill Choice. They participate in ComfyUI cache invalidation and are reused in both judgment stages. Existing unconnected workflows retain their widget positions and behavior.
