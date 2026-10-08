@@ -145,6 +145,18 @@ class SkillWorkflowTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual([(item['name'], item['strength']) for item in bundle['skills']], [('music', 1.8), ('copy', 0.6)])
         self.assertEqual(self.transport.await_count, 4)
 
+    async def test_catalog_and_saved_custom_models_validate_in_skill_workflow(self):
+        metadata = {"input_modalities": ["text"], "output_modalities": ["decisions"]}
+        with patch.dict(n.model_catalog.decision_models, {"vendor/new-decision": metadata, "vendor/saved-decision": metadata}), patch.object(n.model_catalog, "decision_model_ids", ("vendor/new-decision",)):
+            for model in ("vendor/new-decision", "vendor/saved-decision", "custom"):
+                self.graph['2']['inputs']['provider'] = 'openrouter'
+                self.graph['2']['inputs']['model'] = model
+                if model == 'custom':
+                    self.graph['2']['inputs']['model.model_id'] = 'vendor/saved-custom'
+                text, _ = await self.run_graph('Write advertising copy')
+                self.assertIn('COPY GUIDANCE', text)
+                self.assertEqual(self.transport.call_args.args[2], 'vendor/saved-custom' if model == 'custom' else model)
+
     def test_saved_workflow_matches_node_inputs_and_links(self):
         workflow = json.loads((ROOT / 'examples/04_skill_choice.workflow.json').read_text())
         graph = json.loads((ROOT / 'examples/04_skill_choice.api.json').read_text())

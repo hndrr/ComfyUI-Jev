@@ -83,7 +83,7 @@ To use OpenRouter for Jev judgments as well, change `provider` to `openrouter` i
 
 ## Image decisions through OpenRouter
 
-Jev Interpret and Jev Skill Choice also offer `openai/gpt-6-luna-decisions`, `cloudflare/clef`, and `cloudflare/clef-flash`. Set `provider = openrouter`, keep `api_key` empty to use `OPENROUTER_API_KEY`, and connect a Load Image output to the optional `images` input. All three use the Decisions API; OpenRouter Text remains a text-generation node.
+Jev Interpret and Jev Skill Choice load only Decisions models from the public catalog and switch their choices with `provider`. Image-capable options include Luna, Clef, and Clef Flash. Set `provider = openrouter`, keep `api_key` empty to use `OPENROUTER_API_KEY`, and connect a Load Image output to the optional `images` input. Judgments use the Decisions API; OpenRouter Text remains a text-generation node.
 
 The entire image batch and optional `content_json` parts are included in both ranking and verification. Use existing ComfyUI nodes for resizing, selecting video frames, transcribing audio, or extracting document pages. See [input formats, limits and measured results](docs/decisions.md).
 
@@ -122,7 +122,7 @@ For the three image generation examples, replace `YOUR_SD_OR_SDXL_CHECKPOINT.saf
 | --- | --- |
 | Nodes are missing | Check your ComfyUI version, restart it, and look for `import failed` in the startup log |
 | Missing key or authentication error | Check that the key matches `provider` and that `api_key` does not contain an old or different key |
-| OpenRouter model list is empty | Enter a model ID with `custom`. Restart ComfyUI to fetch the list again |
+| OpenRouter model list is unavailable | Restart ComfyUI to retry. Decisions nodes use the last verified or bundled Decisions list; OpenRouter Text also supports `custom` |
 | Candidate generation fails | Use a model that supports Structured Outputs. Increase `max_tokens` if the response was truncated |
 | Running again returns the same result | ComfyUI reuses cached results. Change the relevant node's `refresh` to request a new result |
 

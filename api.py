@@ -17,10 +17,11 @@ CHAT_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
 MODELS_ENDPOINT = "https://openrouter.ai/api/v1/models"
 
 
-async def list_text_models():
+async def _list_models(output_modality=None):
+    options = {"params": {"output_modalities": output_modality}} if output_modality else {}
     try:
         async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:
-            async with session.get(MODELS_ENDPOINT, allow_redirects=False) as response:
+            async with session.get(MODELS_ENDPOINT, allow_redirects=False, **options) as response:
                 if response.status != 200:
                     raise RuntimeError(f"OpenRouter model catalog HTTP {response.status}")
                 catalog = loads(await response.text(), "OpenRouter model catalog")
@@ -30,8 +31,12 @@ async def list_text_models():
         raise RuntimeError(f"OpenRouter model catalog connection failed ({type(error).__name__})") from None
     if not isinstance(catalog, dict) or not isinstance(catalog.get("data"), list):
         raise ValueError("OpenRouter model catalog must contain a data array")
+    return catalog["data"]
+
+
+async def list_text_models():
     model_ids = set()
-    for model in catalog["data"]:
+    for model in await _list_models():
         if not isinstance(model, dict):
             continue
         model_id = model.get("id")
@@ -44,6 +49,31 @@ async def list_text_models():
     if not model_ids:
         raise ValueError("OpenRouter model catalog contains no text models")
     return tuple(sorted(model_ids))
+
+
+def decision_models_from_data(data):
+    """Recheck filtered API responses and the separate Decisions cache."""
+    models = {}
+    if not isinstance(data, list):
+        raise ValueError("OpenRouter Decisions catalog must contain a data array")
+    for model in data:
+        if not isinstance(model, dict):
+            continue
+        model_id, architecture = model.get("id"), model.get("architecture")
+        if not isinstance(model_id, str) or not model_id.strip() or model_id != model_id.strip() or model_id == "custom" or not isinstance(architecture, dict):
+            continue
+        inputs, outputs = architecture.get("input_modalities"), architecture.get("output_modalities")
+        if not all(isinstance(items, list) and items and all(isinstance(item, str) and item for item in items) for items in (inputs, outputs)):
+            continue
+        if "decisions" in outputs:
+            models[model_id] = {"input_modalities": sorted(set(inputs)), "output_modalities": sorted(set(outputs))}
+    if not models:
+        raise ValueError("OpenRouter catalog contains no verified Decisions models")
+    return dict(sorted(models.items()))
+
+
+async def list_decision_models():
+    return decision_models_from_data(await _list_models("decisions"))
 
 
 def connection(provider, model):

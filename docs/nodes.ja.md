@@ -24,9 +24,9 @@
 
 booleanとmulti_choiceの`threshold`は既定0.5、比較は`>=`です。詳細設定から変更できます。scoreのconfidenceを評価値へ混ぜません。数値が必要なら標準のConvert Number、真偽による分岐にはCompare TextとSwitchなどを使います。
 
-出力は`result`（STRING）、`details`（DICT、判定の詳細）、`response_json`（STRING、生のAPI応答）です。JSON形式の解析結果も、必要ならstateへ文字列として渡せます。対応する3種類のOpenRouter Decisionsモデルでは、任意入力`images`と`content_json`から画像を渡せます。[マルチモーダル入力](decisions.ja.md)を参照してください。従来のJevモデルは文章用です。数値抽出は元の`state`だけを対象とし、OCRや追加テキストからの抽出には変更しません。
+出力は`result`（STRING）、`details`（DICT、判定の詳細）、`response_json`（STRING、生のAPI応答）です。JSON形式の解析結果も、必要ならstateへ文字列として渡せます。カタログで画像入力対応を確認できるOpenRouter Decisionsモデルでは、任意入力`images`と`content_json`から画像を渡せます。[マルチモーダル入力](decisions.ja.md)を参照してください。従来のJevモデルは文章用です。数値抽出は元の`state`だけを対象とし、OCRや追加テキストからの抽出には変更しません。
 
-Jevモデルは既定`jev-latest`。TypeSafeでは`jev-preview`、`jev-1.13.0`、任意IDにも対応します。OpenRouterでは`jev-latest`を`~typesafe/jev-latest`、`jev-1.13.0`を`typesafe/jev-1.13`として送信します。`jev-preview`は未対応です。任意IDは`custom`で指定します。
+Jevモデルは既定`jev-latest`。TypeSafeでは`jev-preview`、`jev-1.13.0`、任意IDにも対応します。OpenRouterでは`jev-latest`を`~typesafe/jev-latest`、`jev-1.13.0`を`typesafe/jev-1.13`として送信します。`jev-preview`は未対応です。OpenRouterの候補はカタログの出力モダリティに`decisions`を含むモデルだけで、`provider`に応じて切り替わります。起動時に取得し、失敗時は専用の保存済み一覧を使います。保存済みの選択や旧`custom` IDは維持しますが、新規のOpenRouter選択では`custom`を表示しません。[モデル取得と画像対応](decisions.ja.md#モデルの取得)も参照してください。
 
 ### 候補の提案
 
