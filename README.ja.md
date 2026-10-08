@@ -12,7 +12,7 @@ Jevによる文章の解釈・判定をComfyUIで使うためのカスタムノ�
 | **Jev Skill Choice** | ローカルのSkill（`SKILL.md`）から依頼に合うものを選択 |
 | **OpenRouter Text** | OpenRouterで文章や選択候補を生成 |
 
-[インストール](#インストール) · [APIキーの設定](#apiキーの設定) · [まず試す](#まず試す) · [サンプル](#サンプルワークフロー) · [ノードの詳細](docs/nodes.ja.md)
+[インストール](#インストール) · [APIキーの設定](#apiキーの設定) · [まず試す](#まず試す) · [サンプル](#サンプルワークフロー) · [ノードの詳細](docs/nodes.ja.md) · [リリース履歴](https://github.com/hndrr/ComfyUI-Jev/releases)
 
 ## インストール
 
@@ -136,7 +136,7 @@ Jev Interpret → Preview as Text
 
 画像生成側のseedやサイズだけを変えても、文章生成やJevの判定は再利用されます。詳しくは[実行とキャッシュ](docs/nodes.ja.md#実行とキャッシュ)を参照してください。
 
-開発・保守を行う方向けのテスト方法とRegistry公開手順は、[開発ガイド](docs/development.ja.md)にまとめています。
+開発・保守を行う方向けのテスト方法とRegistry公開手順は[開発ガイド](docs/development.ja.md)、採番・リリース・再試行の運用方針は[MAINTAINERS.md](MAINTAINERS.md)にまとめています。
 
 ## ライセンス
 

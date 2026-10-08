@@ -12,7 +12,7 @@ Custom nodes for using Jev's text interpretation and judgments in ComfyUI. Use n
 | **Jev Skill Choice** | Select local Skills (`SKILL.md` files) for a request |
 | **OpenRouter Text** | Generate text or selection candidates with OpenRouter |
 
-[Installation](#installation) · [API keys](#api-key-setup) · [First workflow](#first-workflow) · [Examples](#example-workflows) · [Node reference](docs/nodes.md)
+[Installation](#installation) · [API keys](#api-key-setup) · [First workflow](#first-workflow) · [Examples](#example-workflows) · [Node reference](docs/nodes.md) · [Releases](https://github.com/hndrr/ComfyUI-Jev/releases)
 
 ## Installation
 
@@ -136,7 +136,7 @@ For the three image generation examples, replace `YOUR_SD_OR_SDXL_CHECKPOINT.saf
 
 Changing only the image generation seed or size reuses previous text generation and Jev judgments. See [execution and caching](docs/nodes.md#execution-and-caching) for details.
 
-For testing and Registry publishing, see the [development guide](docs/development.md).
+For testing and Registry publishing, see the [development guide](docs/development.md). Release policy and retries are documented in [MAINTAINERS.md](MAINTAINERS.md) (Japanese).
 
 ## License
 
