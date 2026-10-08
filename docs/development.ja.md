@@ -45,7 +45,7 @@ python3 -m unittest discover -s .github/tests -v
 
 アップロード成功とRegistryの承認は別です。Release作成と本文同期はActive・Pendingを対象にし、Flagged・削除済み版はスキップします。2026-10-08時点では`0.1.0`・`0.1.1`ともにFlaggedで、理由は`policy-v0.5: arbitrary-file-read`です。記録済みの履歴は承認後に補完できます。
 
-[`.comfyignore`](../.comfyignore)でテスト・保守手順・GitHub設定を配布対象から除外しています。実行用モジュール、README、ドキュメント、サンプルワークフローは含まれます。
+[`.comfyignore`](../.comfyignore)でテストとGitHub設定を配布対象から除外しています。実行用モジュール、README、保守手順、ドキュメント、サンプルワークフローは含まれます。
 
 公開仕様: [公式の公開手順](https://docs.comfy.org/registry/publishing) / [メタデータ仕様](https://docs.comfy.org/registry/specifications)
 
