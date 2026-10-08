@@ -81,6 +81,20 @@ In PowerShell, use `$env:OPENROUTER_API_KEY="your-openrouter-key"`.
 
 To use OpenRouter for Jev judgments as well, change `provider` to `openrouter` in Jev Interpret or Jev Skill Choice. An empty `api_key` field then uses `OPENROUTER_API_KEY`. When entering a key directly, use the key for the selected provider.
 
+## Text and JSON decisions with optional images
+
+Jev Interpret and Jev Skill Choice use Decisions models to make judgments from text and JSON. They load only Decisions models from the public catalog and switch their choices with `provider`; text-only Decisions models can also be selected. Set `provider = openrouter` and keep `api_key` empty to use `OPENROUTER_API_KEY`. The `images` input is optional: both nodes work with it disconnected. To add images, select an image-capable Decisions model such as Luna, Clef, or Clef Flash, then connect a Load Image output to `images`. Judgments use the Decisions API; OpenRouter Text remains a text-generation node.
+
+The entire image batch and optional `content_json` parts are included in both ranking and verification. Use existing ComfyUI nodes for resizing, selecting video frames, transcribing audio, or extracting document pages. See [input formats, limits and measured results](docs/decisions.md).
+
+![Jev Interpret node with image inputs, OpenRouter model selection, and judgment outputs](docs/images/jev-interpret.png)
+
+*Jev Interpret with Luna Decisions selected through OpenRouter.*
+
+![Jev Skill Choice node with image inputs, model selection, and skill outputs](docs/images/jev-skill-choice.png)
+
+*Jev Skill Choice with image inputs and skill selection controls.*
+
 ## First workflow
 
 After setting your TypeSafe key, try judging whether a sentence meets a condition.
@@ -116,7 +130,7 @@ For the three image generation examples, replace `YOUR_SD_OR_SDXL_CHECKPOINT.saf
 | --- | --- |
 | Nodes are missing | Check your ComfyUI version, restart it, and look for `import failed` in the startup log |
 | Missing key or authentication error | Check that the key matches `provider` and that `api_key` does not contain an old or different key |
-| OpenRouter model list is empty | Enter a model ID with `custom`. Restart ComfyUI to fetch the list again |
+| OpenRouter model list is unavailable | Restart ComfyUI to retry. Decisions nodes use the last verified or bundled Decisions list; OpenRouter Text also supports `custom` |
 | Candidate generation fails | Use a model that supports Structured Outputs. Increase `max_tokens` if the response was truncated |
 | Running again returns the same result | ComfyUI reuses cached results. Change the relevant node's `refresh` to request a new result |
 

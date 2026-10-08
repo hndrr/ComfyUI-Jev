@@ -8,15 +8,15 @@ ComfyUI-Jevのコードを変更する方と、Registryへリリースするメ�
 
 ## テスト
 
-テストにはComfyUI本体とその依存ライブラリが必要です。リポジトリを`ComfyUI/custom_nodes/ComfyUI-Jev`へ配置し、ComfyUIが使うPython環境で、リポジトリのルートから実行します。
+全オフラインテストとCIの詳細は[ノードのテスト](node-tests.ja.md)を参照してください。テストにはComfyUI本体とその依存ライブラリが必要です。ComfyUIが使うPython環境で、**ComfyUIのルート**から実行します。
 
 ```sh
-python -m unittest discover -s tests -v
+python custom_nodes/ComfyUI-Jev/.github/scripts/run_node_tests.py --comfy-dir .
 ```
 
-通常テストは有料APIを呼びません。モック応答から候補生成・選択・キャッシュの再利用を確認し、実際のComfyUI実行エンジンで標準ノードを通してSave Imageまで実行します。チェックポイント読込と学習済みモデルの計算もモックのため、画質や実APIの判断精度は検証しません。
+このrunnerは実際のComfyUIモジュールを選び、実ネットワーク接続を遮断し、skipやテストの検出不足を失敗と扱います。Jevリポジトリのルートから単純にテストを検出すると、この拡張の`nodes.py`がComfyUI本体のモジュールを隠す場合があります。有料API応答と学習済みモデルの計算はモックであり、実モデルの精度は検証しません。
 
-リリース用スクリプトのテストは、Python 3.11以降とGitだけで実行できます。
+リリース用スクリプトのテストは、**Jevリポジトリのルート**からPython 3.11以降とGitだけで実行できます。
 
 ```sh
 python3 -m unittest discover -s .github/tests -v

@@ -8,15 +8,15 @@ Release policy, retries, and historical notes: [MAINTAINERS.md](../MAINTAINERS.m
 
 ## Tests
 
-Tests require ComfyUI and its dependencies. Place this repository at `ComfyUI/custom_nodes/ComfyUI-Jev`, then run from the repository root using the Python environment that runs ComfyUI:
+Follow the [node test guide](node-tests.md) for the complete offline suite and CI setup. Tests require ComfyUI and its dependencies. From the **ComfyUI root**, use its Python environment:
 
 ```sh
-python -m unittest discover -s tests -v
+python custom_nodes/ComfyUI-Jev/.github/scripts/run_node_tests.py --comfy-dir .
 ```
 
-The regular tests do not call paid APIs. They use mocked responses to verify candidate generation, selection, and cache reuse, and run through standard nodes to Save Image using the actual ComfyUI execution engine. Checkpoint loading and trained-model computation are also mocked, so these tests do not evaluate image quality or real API judgment accuracy.
+The runner selects the actual ComfyUI modules, blocks real network access, and fails on skipped tests or incomplete discovery. Running plain discovery from the Jev repository root can shadow ComfyUI's `nodes.py` with this extension's module. The tests mock paid API responses and learned-model computation; they do not measure real model accuracy.
 
-Release automation has a separate suite that requires only Python 3.11 or later and Git:
+Release automation has a separate suite that requires only Python 3.11 or later and Git. Run it from the **Jev repository root**:
 
 ```sh
 python3 -m unittest discover -s .github/tests -v
