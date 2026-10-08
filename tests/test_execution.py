@@ -217,6 +217,27 @@ class ExecutionTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(context.parts[:2], (timestamps, "The frame order matches the JSON timestamps."))
         self.assertEqual(len(context.parts[2:]), 2)
 
+    async def test_catalog_and_legacy_models_validate_and_execute_with_original_inputs(self):
+        metadata = {"input_modalities": ["text", "image"], "output_modalities": ["decisions"]}
+        cases = [("typesafe", "jev-latest", {}), ("typesafe", "jev-preview", {}),
+                 ("typesafe", "jev-1.13.0", {}), ("openrouter", "jev-latest", {}),
+                 ("openrouter", "vendor/new-decision", {}), ("openrouter", "vendor/saved-decision", {}),
+                 ("openrouter", "custom", {"model.model_id": "vendor/saved-custom"})]
+        with patch.dict(n.model_catalog.decision_models, {"vendor/new-decision": metadata, "vendor/saved-decision": metadata}), patch.object(n.model_catalog, "decision_model_ids", ("vendor/new-decision",)), patch.object(api, "evaluate", side_effect=lambda state, questions, *args, **kwargs: response_for(questions)) as judgment:
+            for provider, model, extra in cases:
+                with self.subTest(provider=provider, model=model):
+                    graph = {
+                        "1": {"class_type": "JevInterpret", "inputs": {
+                            "state": "brief", "instructions": "Relevant?", "task": "boolean",
+                            "model": model, "provider": provider, "api_key": "", "refresh": 0, **extra,
+                        }},
+                        "2": {"class_type": "PreviewAny", "inputs": {"source": ["1", 0]}},
+                    }
+                    executor = PromptExecutor(Server(), cache_type=False, cache_args={"ram": 0, "ram_inactive": 0})
+                    await self.run_prompt(executor, graph, f"catalog-{provider}-{model}")
+                    self.assertEqual(judgment.call_args.args[2], extra.get("model.model_id", model))
+                    self.assertEqual(judgment.call_args.kwargs["provider"], provider)
+
     async def test_saved_workflows_match_executable_examples(self):
         paths = list((ROOT / "examples").glob("0[1-3]*.workflow.json"))
         self.assertEqual(len(paths), 3)

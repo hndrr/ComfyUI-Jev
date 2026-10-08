@@ -7,12 +7,14 @@ from . import api, decisions, media, model_catalog, semantics as s, skills, sugg
 def jev_connection_inputs():
     return [
         io.DynamicCombo.Input("model", options=[
-            io.DynamicCombo.Option("jev-latest", []),
-            io.DynamicCombo.Option("jev-preview", []),
-            io.DynamicCombo.Option("jev-1.13.0", []),
-            *[io.DynamicCombo.Option(model_id, []) for model_id in decisions.MODELS],
+            *[io.DynamicCombo.Option(model_id, []) for model_id in model_catalog.TYPESAFE_MODELS],
+            *[io.DynamicCombo.Option(model_id, []) for model_id in sorted(model_catalog.decision_models)],
             io.DynamicCombo.Option("custom", [io.String.Input("model_id", default="jev-1.13.0")]),
-        ], tooltip="Use provider=openrouter for Luna Decisions and Clef. Existing Jev models keep their usual provider."),
+        ], tooltip="OpenRouter lists only Decisions models from its public catalog, refreshed at startup. Saved model choices are preserved.",
+            extra_dict={"jev_provider_models": {
+                "typesafe": [*model_catalog.TYPESAFE_MODELS, "custom"],
+                "openrouter": list(model_catalog.decision_model_ids),
+            }}),
         io.Combo.Input("provider", options=["typesafe", "openrouter"], default="typesafe"),
         io.String.Input("api_key", default="", tooltip="Empty uses the provider's environment variable. Entered keys are saved in workflows; remove before sharing."),
         io.Int.Input("refresh", default=0, min=0, control_after_generate=io.ControlAfterGenerate.fixed, tooltip="Keep fixed to reuse results. Change to request a new judgment."),
@@ -30,7 +32,7 @@ def candidate_inputs():
 
 def context_inputs():
     return [
-        io.Image.Input("images", optional=True, tooltip="Entire IMAGE batch, in order. Luna: 128 images; Clef: 4. Resize/select frames with existing nodes."),
+        io.Image.Input("images", optional=True, tooltip="Entire IMAGE batch, in order. Requires image input support in the Decisions catalog. Known limits: Luna 128, Clef 4. Resize/select frames with existing nodes."),
         io.String.Input("content_json", force_input=True, optional=True,
                         tooltip="JSON array of text and image_url parts. Images must be PNG/JPEG/WebP data URLs. Order: state/prompt, content_json, IMAGE batch."),
     ]

@@ -9,7 +9,7 @@ import torch
 
 from test_jev import api, n, response_for
 from test_suggestions import CANDIDATES, reply
-from jev_under_test import decisions, media, suggestions
+from jev_under_test import decisions, media, model_catalog, suggestions
 
 
 def image_url(color="red", format="PNG"):
@@ -26,6 +26,28 @@ QUESTION = {"q": {"type": "noul", "instructions": "Contains red?"}}
 
 
 class MediaTests(unittest.TestCase):
+    def test_catalog_image_model_is_not_given_other_models_limits_or_routes(self):
+        architecture = {"input_modalities": ["text", "image"], "output_modalities": ["decisions"]}
+        with patch.dict(model_catalog.decision_models, {"vendor/new-decision": architecture}):
+            context = media.Context("", ("x" * (256 * 1024), *([part()] * 5)))
+            body = decisions.payload(context, {str(i): QUESTION["q"] for i in range(65)}, "vendor/new-decision", "openrouter")
+        self.assertEqual(body["state"], list(context.parts))
+        self.assertEqual(len(body["questions"]), 65)
+        self.assertNotIn("provider", body)
+
+    def test_catalog_text_only_or_unverified_models_reject_images(self):
+        with patch.dict(model_catalog.decision_models, {"vendor/text-decision": {"input_modalities": ["text"], "output_modalities": ["decisions"]}}):
+            for model in ("vendor/text-decision", "vendor/unknown"):
+                with self.subTest(model=model), self.assertRaisesRegex(ValueError, "verified image input"):
+                    decisions.payload(media.Context("", (part(),)), QUESTION, model, "openrouter")
+
+    def test_catalog_audio_video_metadata_does_not_enable_unsupported_wire_parts(self):
+        with patch.dict(model_catalog.decision_models, {"vendor/multimodal": {"input_modalities": ["text", "image", "audio", "video"], "output_modalities": ["decisions"]}}):
+            for kind in ("input_audio", "video_url", "file"):
+                context = media.prepare("", json.dumps([{"type": kind, kind: {}}]))
+                with self.subTest(kind=kind), self.assertRaisesRegex(ValueError, "not native audio/video/files"):
+                    decisions.payload(context, QUESTION, "vendor/multimodal", "openrouter")
+
     def test_legacy_original_is_unchanged(self):
         state = '{"request":"8 seconds"}\n'
         self.assertEqual(media.prepare(state), state)

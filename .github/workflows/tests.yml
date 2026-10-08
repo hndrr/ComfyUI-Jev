@@ -59,3 +59,5 @@ jobs:
         run: |
           python -c "import torch; assert torch.version.cuda is None, 'CI requires CPU-only PyTorch'"
           python custom_nodes/ComfyUI-Jev/.github/scripts/run_node_tests.py --comfy-dir .
+      - name: Check model picker compatibility
+        run: node ComfyUI/custom_nodes/ComfyUI-Jev/.github/scripts/test_model_picker.mjs

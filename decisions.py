@@ -71,9 +71,12 @@ def payload(state, questions, model, provider):
                 raise ValueError("These Decisions models accept text and images, not native audio/video/files. Connect existing ComfyUI transcription or frame/page extraction nodes.")
             image_parts.append(part)
         if image_parts:
-            if provider != "openrouter" or spec is None:
-                raise ValueError("Image Decisions require OpenRouter and a supported Luna Decisions, Clef, or Clef Flash model")
-            if len(image_parts) > spec["images"]:
+            from . import model_catalog
+
+            architecture = model_catalog.decision_models.get(model, {})
+            if provider != "openrouter" or "image" not in architecture.get("input_modalities", []):
+                raise ValueError("Image Decisions require an OpenRouter Decisions model with verified image input support in the catalog")
+            if spec and len(image_parts) > spec["images"]:
                 raise ValueError(f"{model} accepts at most {spec['images']} images; select a smaller batch explicitly")
             for part in image_parts:
                 _image(part)
@@ -91,7 +94,7 @@ def payload(state, questions, model, provider):
                     raise ValueError("Clef choice questions require 2–255 candidates")
                 if question.get("type") == "score" and not 2 <= count <= 10:
                     raise ValueError("Clef score questions require 2–10 levels")
-    if image_parts:
+    if image_parts and spec:
         # The public guide describes these native routes. Cheaper third-party routing
         # returned text-like guesses in the recorded Clef image/control experiment.
         result["provider"] = {"only": [spec["provider"]], "allow_fallbacks": False}

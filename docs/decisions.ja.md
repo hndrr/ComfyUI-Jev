@@ -2,9 +2,17 @@
 
 [English](decisions.md) · [ノードの詳細](nodes.ja.md)
 
-Jev InterpretまたはJev Skill Choiceで`provider = openrouter`にし、`openai/gpt-6-luna-decisions`・`cloudflare/clef`・`cloudflare/clef-flash`を選びます。通常の任意入力`images`にComfyUIのIMAGEバッチを接続します。既存の文章ワークフロー、既定値、出力型、認証方法は維持します。
+Jev InterpretまたはJev Skill Choiceで`provider = openrouter`にし、カタログのDecisionsモデルから選びます。画像には、`openai/gpt-6-luna-decisions`・`cloudflare/clef`・`cloudflare/clef-flash`など、入力モダリティに`image`を含むモデルを使います。通常の任意入力`images`にComfyUIのIMAGEバッチを接続します。既存の文章ワークフロー、既定値、出力型、認証方法は維持します。
 
 最小構成は **Load Image → Jev Interpret.images** です。`task = boolean`、`instructions = 画像に赤い物体があるか`とし、`result`をPreview as Textへ接続します。チェックポイントや文章生成ノードは不要です。
+
+## モデルの取得
+
+起動時に[Decisionsに絞ったOpenRouterの公開カタログ](https://openrouter.ai/api/v1/models?output_modalities=decisions)を認証なしで取得し、各モデルの`architecture.output_modalities`も検証します。[カタログ仕様](https://openrouter.ai/docs/api/api-reference/models/list-all-models-and-their-properties)では`output_modalities`省略時は`text`が既定です。OpenRouter Textの文章生成モデル一覧とは分けて扱います。一覧の更新にはComfyUIを再起動してください。
+
+候補は`provider`に応じて切り替わります。TypeSafeでは従来の`jev-latest`・`jev-preview`・`jev-1.13.0`・`custom`を維持し、OpenRouterの新規選択にはDecisionsと確認できたIDだけを表示します。取得失敗時は専用の前回成功したキャッシュを使い、それもなければ対応済みのLuna・Clef・TypeSafeのDecisions経路を表示します。過去に確認したIDは保存ワークフロー用に保持し、新しい候補には戻しません。旧`custom`設定は読み込めます。別マシンなどで保存モデルがローカルキャッシュにない場合も、この互換用フィールドへIDを復元します。新しいOpenRouter候補に任意ID入力を追加するものではありません。
+
+画像対応は入力モダリティで判断し、既知モデル固有の制限・提供元指定とは分けます。新しく掲載された画像対応Decisionsモデルにも正式な画像partsを送れますが、Luna/Clefの制限や提供元固定は適用しません。未確認または文章専用のモデルでは送信前に画像を拒否します。音声・動画のメタデータがあっても、ネイティブの音声・動画partsは有効にしません。掲載は公称の対応情報であり、認識精度や全質問形式への対応を実測した証拠ではありません。モデルによっては特定の質問を上流で拒否する場合があります。
 
 ## 文脈の組み立て
 
@@ -46,7 +54,7 @@ ClefとClef Flashでは、非ASCII文字のエスケープ、質問、画像、�
 
 質問数はLunaで200、Clef系で64まで検証します。Clef系はchoiceが2〜255候補、scoreが2〜10段階です。候補の展開やSkillの絞り込みで複数の質問が生成される点にも注意してください。候補が1件だけなら比較質問を省き、必要性・適合性・任意の適用度の判定は維持します。根拠：[OpenAI Decisions](https://developers.openai.com/api/docs/guides/decisions)、[Clef](https://developers.cloudflare.com/workers-ai/models/clef/)、[Clef Flash](https://developers.cloudflare.com/workers-ai/models/clef-flash/)。
 
-画像リクエストはOpenRouter内でLunaをOpenAI、Clef系をCloudflareへ明示的に送り、他の提供元への自動代替を止めます。第三者提供元のClefは今回の画像実験に合格しませんでした。画像経路の料金は最安の提供元より高くなる場合があります。既存の文章のみの経路は維持します。
+画像リクエストはOpenRouter内でLunaをOpenAI、Clef系をCloudflareへ明示的に送り、他の提供元への自動代替を止めます。ほかのカタログモデルでは提供元を固定せず、OpenRouterの経路選択を使います。第三者提供元のClefは今回の画像実験に合格しませんでした。画像経路の料金は最安の提供元より高くなる場合があります。既存の文章のみの経路は維持します。
 
 画像・追加テキストもキャッシュ更新の対象です。同じ入力を再判定する場合は`refresh`を変更します。新しい接続は任意で、既存ウィジェットの位置は変わらないため、古い保存済みワークフローの移行は不要です。
 
@@ -69,4 +77,4 @@ ClefとClef Flashでは、非ASCII文字のエスケープ、質問、画像、�
 
 ## 保守
 
-`media.py`はComfyUI入力の正規化、`decisions.py`は送信形式・モデル制約・提供元選択、`api.py`は通信、`nodes.py`は接続入力を担当します。新しいモデルへの変更箇所を小さなモデル表と契約テストにまとめています。
+`media.py`はComfyUI入力の正規化、`decisions.py`は送信形式・モデル制約・提供元選択、`api.py`は通信、`nodes.py`は接続入力を担当します。モデルIDと入力モダリティはカタログから取得し、確認できたモデル固有の制限・提供元指定だけを小さなモデル表と契約テストに記載します。

@@ -245,9 +245,10 @@ class TransportTests(unittest.IsolatedAsyncioTestCase):
 
 class NodeTests(unittest.IsolatedAsyncioTestCase):
     async def test_registered_nodes_and_native_types(self):
-        with patch.object(package.model_catalog, "load", new_callable=AsyncMock) as load:
+        with patch.object(package.model_catalog, "load", new_callable=AsyncMock) as load, patch.object(package.model_catalog, "load_decisions", new_callable=AsyncMock) as load_decisions:
             classes = await (await package.comfy_entrypoint()).get_node_list()
             load.assert_awaited_once()
+            load_decisions.assert_awaited_once()
         self.assertEqual(classes, [n.JevInterpret, n.OpenRouterText, n.JevSkillChoice])
         n.JevInterpret.INPUT_TYPES()
         self.assertEqual(n.JevInterpret.RETURN_TYPES, ["STRING", "DICT", "STRING"])

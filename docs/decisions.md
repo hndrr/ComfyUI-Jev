@@ -2,9 +2,17 @@
 
 [日本語](decisions.ja.md) · [Node reference](nodes.md)
 
-Set `provider` to `openrouter` and select `openai/gpt-6-luna-decisions`, `cloudflare/clef`, or `cloudflare/clef-flash` in Jev Interpret or Jev Skill Choice. The normal optional `images` input accepts ComfyUI IMAGE batches. Existing text workflows, defaults, output types, and credential handling are unchanged.
+Set `provider` to `openrouter` in Jev Interpret or Jev Skill Choice and select a Decisions model from its catalog dropdown. For images, choose a model whose catalog input modalities include `image`, such as `openai/gpt-6-luna-decisions`, `cloudflare/clef`, or `cloudflare/clef-flash`. The normal optional `images` input accepts ComfyUI IMAGE batches. Existing text workflows, defaults, output types, and credential handling are unchanged.
 
 For a minimal workflow, connect **Load Image → Jev Interpret.images**, choose `task = boolean`, and ask `Does the image contain a red object?`. Connect `result` to Preview as Text. No checkpoint or text-generation node is needed.
+
+## Model discovery
+
+At startup, the extension reads the public [OpenRouter catalog filtered to Decisions](https://openrouter.ai/api/v1/models?output_modalities=decisions) without an API key and rechecks each model's `architecture.output_modalities`. The [catalog reference](https://openrouter.ai/docs/api/api-reference/models/list-all-models-and-their-properties) documents that omitting `output_modalities` defaults to `text`; the separate OpenRouter Text list remains for text generation. Restart ComfyUI to refresh the lists.
+
+The model dropdown changes with `provider`. TypeSafe retains `jev-latest`, `jev-preview`, `jev-1.13.0` and `custom`. New OpenRouter choices contain only verified Decisions IDs. If fetching fails, the extension uses its separate last successful Decisions cache; without one, it offers the already-supported Luna, Clef and TypeSafe Decisions routes. Historical verified IDs stay available to saved workflows without reappearing as new choices. Old saved `custom` selections still load; a saved model missing from the local cache is restored through that same compatibility field. This does not add arbitrary custom IDs to the new OpenRouter dropdown.
+
+Input modalities determine image eligibility independently from the small table of known model-specific limits and provider routes. A newly listed image-capable Decisions model can receive the documented image parts, without inheriting Luna/Clef limits or provider pinning. Unverified or text-only models reject image inputs before sending. Audio/video metadata does not enable native audio/video parts. Catalog listing describes advertised capabilities, not measured accuracy or support for every question type; an upstream model can reject a particular task.
 
 ## Composing context
 
@@ -46,7 +54,7 @@ For Clef and Clef Flash, the extension also enforces a local conservative 256 Ki
 
 The adapter also checks upstream question/choice/score limits: [OpenAI Decisions](https://developers.openai.com/api/docs/guides/decisions) permits 200 questions; [Clef](https://developers.cloudflare.com/workers-ai/models/clef/) and [Clef Flash](https://developers.cloudflare.com/workers-ai/models/clef-flash/) permit 64 questions, 2–255 choice candidates and 2–10 score levels. Candidate expansion and skill shortlists can produce multiple questions. A single candidate skips comparison questions while retaining the need, fit, and optional applicability checks.
 
-Image requests explicitly select OpenAI for Luna and Cloudflare for Clef, through OpenRouter, with provider fallback disabled. A cheaper third-party Clef route did not pass the image experiment below. Text-only legacy routing is unchanged. The chosen image route can cost more than OpenRouter's cheapest listed provider; consult its current pricing.
+Image requests explicitly select OpenAI for Luna and Cloudflare for Clef, through OpenRouter, with provider fallback disabled. Other catalog models keep OpenRouter routing without a provider pin. A cheaper third-party Clef route did not pass the image experiment below. Text-only legacy routing is unchanged. The chosen image route can cost more than OpenRouter's cheapest listed provider; consult its current pricing.
 
 `images` and `content_json` are regular cache inputs. A change to the connected content invalidates the judgment cache. Change `refresh` to request a new judgment with unchanged inputs. Older saved workflows need no migration; the added connections are optional and do not shift existing widgets.
 
@@ -69,4 +77,4 @@ These are measured results, separate from documented API support and offline tes
 
 ## Maintenance
 
-`media.py` normalizes ComfyUI inputs without provider logic. `decisions.py` owns the wire format, model limits, and image provider selection. `api.py` remains the only network transport. `nodes.py` exposes the two optional connections. New model support should update the small model table and relevant contract tests.
+`media.py` normalizes ComfyUI inputs without provider logic. `decisions.py` owns the wire format, model limits, and image provider selection. `api.py` remains the only network transport. `nodes.py` exposes the two optional connections. Catalog discovery supplies model IDs and input modalities; only verified model-specific limits or routing rules belong in the small model table and relevant contract tests.
