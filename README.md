@@ -87,6 +87,14 @@ Jev Interpret and Jev Skill Choice load only Decisions models from the public ca
 
 The entire image batch and optional `content_json` parts are included in both ranking and verification. Use existing ComfyUI nodes for resizing, selecting video frames, transcribing audio, or extracting document pages. See [input formats, limits and measured results](docs/decisions.md).
 
+![Jev Interpret node with image inputs, OpenRouter model selection, and judgment outputs](docs/images/jev-interpret.png)
+
+*Jev Interpret with Luna Decisions selected through OpenRouter.*
+
+![Jev Skill Choice node with image inputs, model selection, and skill outputs](docs/images/jev-skill-choice.png)
+
+*Jev Skill Choice with image inputs and skill selection controls.*
+
 ## First workflow
 
 After setting your TypeSafe key, try judging whether a sentence meets a condition.
