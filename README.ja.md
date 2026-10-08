@@ -81,9 +81,9 @@ PowerShellでは`$env:OPENROUTER_API_KEY="your-openrouter-key"`です。
 
 Jevの判定にもOpenRouterを使う場合は、Jev InterpretまたはJev Skill Choiceの`provider`を`openrouter`へ変更します。`api_key`が空欄なら`OPENROUTER_API_KEY`を読みます。直接入力する場合も、選択したproviderのキーを使ってください。
 
-## OpenRouterで画像を判定する
+## テキスト・JSONの判定と任意の画像入力
 
-Jev InterpretとJev Skill Choiceでは、公開カタログからDecisionsモデルだけを取得し、`provider`に応じて候補を切り替えます。Luna・Clef・Clef Flashなどの画像対応モデルを選べます。`provider = openrouter`にし、既存の`OPENROUTER_API_KEY`を使う場合は`api_key`を空欄にします。Load Imageの出力を任意入力`images`へ接続してください。判断にはDecisions APIを使います。OpenRouter Textは従来どおり文章生成用です。
+Jev InterpretとJev Skill Choiceでは、Decisionsモデルを使ってテキストやJSONに基づく判断ができます。公開カタログからDecisionsモデルだけを取得し、`provider`に応じて候補を切り替えます。テキスト専用のDecisionsモデルも選べます。`provider = openrouter`にし、既存の`OPENROUTER_API_KEY`を使う場合は`api_key`を空欄にします。`images`は任意入力で、未接続のままでも両ノードを使えます。画像も判断に加える場合は、Luna・Clef・Clef Flashなどの画像対応Decisionsモデルを選び、Load Imageの出力を`images`へ接続してください。判断にはDecisions APIを使います。OpenRouter Textは従来どおり文章生成用です。
 
 画像バッチ全体と`content_json`の追加情報を、ランキング・候補検証の両方へ渡します。リサイズ、動画のフレーム選択、音声の文字起こし、文書ページの画像化には、既存のComfyUIノードを組み合わせます。[入力形式・制約・実測結果](docs/decisions.ja.md)を参照してください。
 
