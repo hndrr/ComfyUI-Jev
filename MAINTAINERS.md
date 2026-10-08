@@ -34,7 +34,9 @@
 
 - Publisher `hndr` の公開用APIキーを、リポジトリの Actions secret `REGISTRY_ACCESS_TOKEN` に登録します。TypeSafe・OpenRouterのキーとは別です。
 - バージョン準備ジョブが `main` に push できるよう、リポジトリのActions設定・ブランチ保護を確認します。`contents: write` を指定していても、ブランチ保護によって拒否される場合があります。
-- 既に公開した版のGitHub Releasesがなければ、次の通常公開より先に `sync-notes` を実行します。過去版の履歴を確定し、次の自動生成本文に過去のPR全体が含まれるのを防ぎます。
+- 既に公開した版が `Active`・`Pending` で、GitHub Releasesがなければ、次の通常公開より先に `sync-notes` を実行します。過去版の履歴を確定し、次の自動生成本文に過去のPR全体が含まれるのを防ぎます。
+
+既存版がすべて `Flagged` の間は、`sync-notes` を実行してもRelease・タグは作られません。起点となるReleaseがないため、最初の自動生成本文には公開済みの変更や `New Contributors` も含まれます。初回公開後、対象版が `Active`・`Pending` なら、更新内容を今回分に絞って記録ファイルとGitHub Releaseの本文を更新し、`sync-notes` でRegistryへ同期してください。対象版も `Flagged` になった場合は、承認後にこの手順を行います。
 
 ## 公開失敗時の再試行
 
@@ -44,7 +46,8 @@
 | --- | --- |
 | 準備コミットの push 前 | 失敗した実行の **Re-run** で採番からやり直す |
 | 準備コミットの push 後、Registry公開前 | **Run workflow** の `mode = publish`、ブランチ `main` で現行版を公開する。公開ジョブだけが失敗した場合は **Re-run failed jobs** も使える |
-| Registry公開後、GitHub Release作成・本文同期 | **Re-run failed jobs**、または `mode = sync-notes` を使う |
+| Registry公開後、対象版がActive・PendingでGitHub Release作成・本文同期に失敗 | **Re-run failed jobs**、または `mode = sync-notes` を使う |
+| Registry公開後、対象版がFlaggedになりRelease作成に失敗 | 再実行でもFlaggedの間は復旧しない。審査への対応後、承認された版を `mode = sync-notes` で補完する。版数の更新・パッケージの再公開は行わない |
 
 手動の `publish` は番号を上げません。準備コミットが入る前に使うと、既存の版数で公開しようとします。準備コミットが入った後に **Re-run all jobs** を使うと、既に準備済みと判定され、公開をスキップしたまま成功扱いになる場合があります。
 
