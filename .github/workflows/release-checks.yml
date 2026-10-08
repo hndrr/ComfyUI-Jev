@@ -1,0 +1,28 @@
+name: Check release automation
+
+on:
+  pull_request:
+    paths:
+      - '.github/**'
+      - pyproject.toml
+  push:
+    branches: [main]
+    paths:
+      - '.github/**'
+      - pyproject.toml
+
+permissions:
+  contents: read
+
+jobs:
+  test-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run release automation tests
+        run: python -m unittest discover -s .github/tests -v
