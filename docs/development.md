@@ -33,7 +33,7 @@ Each example in `examples/` has a `.workflow.json` for the UI and a matching `.a
 1. Obtain a publishing API key for `hndr` in [Comfy Registry](https://registry.comfy.org). An existing key for the same publisher can be reused. If its value was not saved, create a new key and store it.
 2. Add it as `REGISTRY_ACCESS_TOKEN` in [this repository's Actions Secrets](https://github.com/hndrr/ComfyUI-Jev/settings/secrets/actions). Repository secrets must be set for each repository, even when reusing the same key. This key is separate from the TypeSafe and OpenRouter keys used by the nodes.
 3. Allow the version-preparation job to push to `main` under the repository's Actions settings and branch protection.
-4. Run **Actions → Publish to Comfy registry → Run workflow**, selecting `main` and `mode = sync-notes`, to backfill existing Registry releases before the next new release. Flagged and deleted versions are skipped.
+4. Run **Actions → Publish to Comfy registry → Run workflow**, selecting `main` and `mode = sync-notes`, to backfill existing Active/Pending Registry releases before the next new release. Flagged and deleted versions are skipped. If no GitHub Release can be backfilled, the first generated notes include earlier PRs; after publication, narrow the release history and GitHub Release body to the current changes and run `sync-notes` once the target version is Active/Pending.
 
 ### Subsequent releases
 
@@ -41,7 +41,7 @@ The [publish workflow](../.github/workflows/publish.yml) runs when release chang
 
 The workflow records a preparation commit, publishes that exact commit, and creates a matching `vX.Y.Z` GitHub Release. Use English PR titles and release notes; the same notes are sent to the Registry. Runs are queued, and changes already included in a prepared release are skipped. Publishing is restricted to `main` in `hndrr/ComfyUI-Jev` and is skipped in forks.
 
-Published packages cannot be overwritten. A manual `mode = publish` run publishes the current version without incrementing it; use it only for an unpublished, prepared version. If Registry publishing already succeeded, retry only the failed Release job or use `sync-notes`. See [the retry table](../MAINTAINERS.md#公開失敗時の再試行) for failures before version preparation.
+Published packages cannot be overwritten. A manual `mode = publish` run publishes the current version without incrementing it; use it only for an unpublished, prepared version. If Registry publishing already succeeded and the version is Active/Pending, retry only the failed Release job or use `sync-notes`. If the version became Flagged before Release creation, retries cannot recover it while Flagged; address the review and backfill with `sync-notes` after approval, without republishing. See [the retry table](../MAINTAINERS.md#公開失敗時の再試行) for failures before version preparation.
 
 Upload success does not establish Registry approval. Release creation and notes synchronization accept Active or Pending versions and skip Flagged/deleted versions. As of 2026-10-08, both `0.1.0` and `0.1.1` are Flagged with reason `policy-v0.5: arbitrary-file-read`; their recorded history can be backfilled after approval.
 
