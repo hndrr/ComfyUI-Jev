@@ -31,6 +31,7 @@ class TypeSafeTests(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         self.response = MagicMock(status=200)
         self.response.text = AsyncMock(return_value=s.dumps(reply()))
+        self.response.content.read = AsyncMock(side_effect=lambda count: self.response.text.return_value.encode()[:count])
         self.response.__aenter__ = AsyncMock(return_value=self.response)
         self.response.__aexit__ = AsyncMock(return_value=False)
         self.session = MagicMock()

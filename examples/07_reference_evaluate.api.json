@@ -1,0 +1,65 @@
+{
+  "1": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "EVALUATION_IMAGE.png"
+    }
+  },
+  "2": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "REFERENCE_IMAGE.png"
+    }
+  },
+  "3": {
+    "class_type": "JevReferenceEvaluate",
+    "inputs": {
+      "images": [
+        "1",
+        0
+      ],
+      "reference_images": [
+        "2",
+        0
+      ],
+      "instructions": "Compare the main product in evaluation_image with the reference. Ignore background changes.",
+      "task": "match",
+      "image_index": 0,
+      "reference_index": 0,
+      "model": "typesafe/jev-1.14",
+      "api_key": "",
+      "refresh": 0,
+      "provider": "openrouter",
+      "reference_placement": "instructions",
+      "threshold": 0.8,
+      "min_confidence": 0.5
+    }
+  },
+  "4": {
+    "class_type": "PreviewAny",
+    "inputs": {
+      "source": [
+        "3",
+        0
+      ]
+    }
+  },
+  "5": {
+    "class_type": "PreviewAny",
+    "inputs": {
+      "source": [
+        "3",
+        1
+      ]
+    }
+  },
+  "6": {
+    "class_type": "PreviewAny",
+    "inputs": {
+      "source": [
+        "3",
+        2
+      ]
+    }
+  }
+}

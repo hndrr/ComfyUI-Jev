@@ -48,7 +48,13 @@ def context_warnings(state, model, provider):
 def _image(part):
     from PIL import Image, UnidentifiedImageError
 
-    url = part["image_url"]["url"]
+    image_url = part.get("image_url")
+    if (set(part) != {"type", "image_url"} or not isinstance(image_url, dict)
+            or not set(image_url) <= {"url", "detail"} or not isinstance(image_url.get("url"), str)):
+        raise ValueError("An image_url part requires a data URL and optional detail")
+    if "detail" in image_url and image_url["detail"] not in ("auto", "low", "high"):
+        raise ValueError("Image detail must be auto, low, or high")
+    url = image_url["url"]
     header, separator, encoded = url.partition(",")
     formats = {"data:image/png;base64": "PNG", "data:image/jpeg;base64": "JPEG", "data:image/webp;base64": "WEBP"}
     if not separator or header not in formats:
@@ -79,44 +85,48 @@ def payload(state, questions, model, provider):
     spec = MODELS.get(model)
     if spec and provider != "openrouter":
         raise ValueError(f"{model} requires provider=openrouter")
-    image_parts = []
-    image_info = []
-    assets = {}
+    image_parts, image_info, assets = [], [], {}
     if isinstance(state, Context):
         items = list(state.parts)
         for part in items:
-            if isinstance(part, str):
-                continue
-            if part.get("type") != "image_url":
+            if not isinstance(part, str) and part.get("type") != "image_url":
                 raise ValueError("These Decisions models accept text and images, not native audio/video/files. Connect existing ComfyUI transcription or frame/page extraction nodes.")
-            image_parts.append(part)
-        if image_parts:
-            if provider == "typesafe":
-                if model not in TYPESAFE_IMAGE_MODELS:
-                    raise ValueError("TypeSafe images require a supported Jev model")
-                state = []
-                for part in items:
-                    if isinstance(part, str):
-                        state.append(part)
-                        continue
-                    image = _image(part)
-                    image_info.append(image)
-                    reference = str(uuid.uuid4())
-                    assets[reference] = {"type": "image", "format": image["format"], "data_base64": image["data_base64"]}
-                    state.append(reference)
-            else:
-                from . import model_catalog
+        state = items if any(not isinstance(part, str) for part in items) else "\n".join(items)
 
-                architecture = model_catalog.decision_models.get(model, {})
-                supports_images = limits.is_jev(model, provider) or "image" in architecture.get("input_modalities", [])
-                if provider != "openrouter" or not supports_images:
-                    raise ValueError("Image Decisions require an OpenRouter Decisions model with verified image input support in the catalog")
-                if spec and len(image_parts) > spec["images"]:
-                    raise ValueError(f"{model} accepts at most {spec['images']} images; select a smaller batch explicitly")
-                image_info = [_image(part) for part in image_parts]
-                state = items  # Images are DIRECT state items; text items are plain strings.
+    def convert(part, location):
+        if provider == "typesafe":
+            if model not in TYPESAFE_IMAGE_MODELS:
+                raise ValueError("TypeSafe images require a supported Jev model")
         else:
-            state = "\n".join(items)
+            from . import model_catalog
+            architecture = model_catalog.decision_models.get(model, {})
+            if provider != "openrouter" or not (limits.is_jev(model, provider) or "image" in architecture.get("input_modalities", [])):
+                raise ValueError("Image Decisions require an OpenRouter Decisions model with verified image input support in the catalog")
+            if location != "state_item" and not limits.is_jev(model, provider):
+                raise ValueError("Images in structured state, instructions, or criteria require a verified Jev model; other Decisions models only read top-level state images")
+        image = _image(part)
+        image_parts.append(part)
+        image_info.append(image)
+        if provider == "typesafe":
+            reference = str(uuid.uuid4())
+            assets[reference] = {"type": "image", "format": image["format"], "data_base64": image["data_base64"]}
+            return reference
+        return {"type": "image_url", "image_url": dict(part["image_url"])}
+
+    def transform(value, location="nested", depth=0):
+        if depth > 64:
+            raise ValueError("Request exceeds 64 nested levels; flatten state/questions")
+        if isinstance(value, dict):
+            if value.get("type") == "image_url":
+                return convert(value, location)
+            return {key: transform(item, "nested", depth + 1) for key, item in value.items()}
+        if isinstance(value, list):
+            return [transform(item, "state_item" if location == "state" else "nested", depth + 1) for item in value]
+        return value
+
+    state = transform(state, "state")
+    questions = {key: {name: transform(value) if name in ("instructions", "criteria") else value
+                       for name, value in question.items()} for key, question in questions.items()}
     if has_box and not image_parts:
         raise ValueError("Box requires an image; connect images to Jev Find Box")
     result = {"model": model, "state": state, "questions": questions}

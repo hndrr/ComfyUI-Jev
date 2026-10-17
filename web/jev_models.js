@@ -37,7 +37,7 @@ export function updateModelChoices(node, byProvider, preserveSaved = false, know
 app.registerExtension({
     name: "Jev.DecisionsModels",
     beforeRegisterNodeDef(nodeType, nodeData) {
-        if (!["JevInterpret", "JevSkillChoice", "JevFindBox"].includes(nodeData.name)) return;
+        if (!["JevInterpret", "JevSkillChoice", "JevFindBox", "JevReferenceEvaluate"].includes(nodeData.name)) return;
         const modelInput = nodeData.input.required.model;
         const config = modelInput[1];
         const choices = config.jev_provider_models;
@@ -48,8 +48,17 @@ app.registerExtension({
             const result = created?.apply(this, args);
             const provider = this.widgets?.find(w => w.name === "provider");
             if (provider) {
+                this._jevProvider = provider.value;
                 const callback = provider.callback;
                 provider.callback = (...values) => {
+                    if (!this._jevRestoring && provider.value !== this._jevProvider) {
+                        const key = this.widgets?.find(w => w.name === "api_key");
+                        if (key) {
+                            key.value = "";
+                            key.callback?.("");
+                        }
+                    }
+                    this._jevProvider = provider.value;
                     callback?.apply(provider, values);
                     updateModelChoices(this, choices);
                 };
@@ -59,9 +68,15 @@ app.registerExtension({
         };
         const configure = nodeType.prototype.onConfigure;
         nodeType.prototype.onConfigure = function (...args) {
-            const result = configure?.apply(this, args);
-            updateModelChoices(this, choices, true, knownModels);
-            return result;
+            this._jevRestoring = true;
+            try {
+                const result = configure?.apply(this, args);
+                updateModelChoices(this, choices, true, knownModels);
+                return result;
+            } finally {
+                this._jevProvider = this.widgets?.find(w => w.name === "provider")?.value;
+                this._jevRestoring = false;
+            }
         };
     },
 });

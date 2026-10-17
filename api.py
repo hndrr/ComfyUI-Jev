@@ -15,6 +15,7 @@ ENDPOINT = "https://api.typesafe.ai/v1/systemone"
 OPENROUTER_ENDPOINT = "https://openrouter.ai/api/alpha/decisions"
 CHAT_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
 MODELS_ENDPOINT = "https://openrouter.ai/api/v1/models"
+ERROR_BODY_LIMIT = 16 * 1024
 
 
 async def _list_models(output_modality=None):
@@ -184,10 +185,32 @@ def error_hint(status, body=""):
             429: "Rate limit exceeded", 529: "Provider temporarily overloaded"}.get(status, "Request failed")
 
 
-async def _post_json(endpoint, payload, key_name, api_key, label, provider):
-    api_key = api_key.strip() or os.environ.get(key_name, "").strip()
-    if not api_key:
+async def error_body(response):
+    """Read at most one bounded prefix; error content is never displayed."""
+    try:
+        data = await response.content.read(ERROR_BODY_LIMIT)
+        return data[:ERROR_BODY_LIMIT].decode("utf-8", errors="replace") if isinstance(data, bytes) else ""
+    except (aiohttp.ClientError, asyncio.TimeoutError, UnicodeError):
+        return ""  # Preserve the original HTTP status and its fixed hint.
+
+
+def credential(provider, endpoint, key_name, api_key):
+    expected = {"typesafe": ("TYPESAFE_API_KEY", (ENDPOINT,)),
+                "openrouter": ("OPENROUTER_API_KEY", (OPENROUTER_ENDPOINT, CHAT_ENDPOINT))}
+    if provider not in expected or key_name != expected[provider][0] or endpoint not in expected[provider][1]:
+        raise ValueError("API provider, endpoint, and credential variable must match")
+    key = api_key.strip() or os.environ.get(key_name, "").strip()
+    opposite = "OPENROUTER_API_KEY" if provider == "typesafe" else "TYPESAFE_API_KEY"
+    other_key = os.environ.get(opposite, "").strip()
+    if key and ((other_key and key == other_key) or (provider == "typesafe" and key.startswith("sk-or-"))):
+        raise ValueError("API key belongs to the other provider; clear api_key and use the selected provider's own key")
+    if not key:
         raise ValueError(f"Enter api_key on the node or set {key_name} in the ComfyUI process environment and restart ComfyUI")
+    return key
+
+
+async def _post_json(endpoint, payload, key_name, api_key, label, provider):
+    api_key = credential(provider, endpoint, key_name, api_key)
     body = decisions.encode_payload(payload)
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
     if provider == "typesafe" and payload.get("assets"):
@@ -204,7 +227,7 @@ async def _post_json(endpoint, payload, key_name, api_key, label, provider):
                     elif response.status != 200:
                         # Error bodies may contain echoed prompts, images, or keys.
                         # Use only fixed hints, including when the body is not JSON.
-                        body = await response.text()
+                        body = await error_body(response)
                         raise RuntimeError(f"{label} HTTP {response.status} ({provider}): {error_hint(response.status, body)}")
                     else:
                         result = loads(await response.text(), f"{label} response")

@@ -14,7 +14,7 @@ Inputs are checked before paid inference. Existing text/image socket names, widg
 | Liquid d1 / d1-ultra | ≤8 images, ≤4.5 MB encoded request, ≤10,000 total 32×32 image patches (round each side up). |
 | Other catalog Decisions models | Preserve their existing image capability gate and wire format. They do not inherit Jev/Clef limits or provider routing. Undocumented limits are left to the provider. |
 
-There is no fixed Jev question-count cap: its total and per-question token context limits still apply. Local byte checks are not token estimates. Jev's processed-image and expanded-request limits can be exceeded even when the upload passes; those sizes are checked upstream. Errors distinguish context overflow from HTTP 413 size overflow and suggest reducing image size, batches/references, questions, or text. Provider error bodies are never echoed because they can contain request content or secrets.
+There is no fixed Jev question-count cap: its total and per-question token context limits still apply. Local byte checks are not token estimates. Jev's processed-image and expanded-request limits can be exceeded even when the upload passes; those sizes are checked upstream. Errors distinguish context overflow from HTTP 413 size overflow and suggest reducing image size, batches/references, questions, or text. Provider error bodies are never echoed because they can contain request content or secrets. Only a bounded 16 KiB prefix is read for classification; invalid UTF-8 is replaced, and body read/decoding failures retain the original HTTP status and fixed guidance.
 
 The direct API's long-context experimental header is not enabled automatically. This change adds validation, not a long-context option. Standard requests retain their existing context mode.
 
