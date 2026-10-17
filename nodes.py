@@ -1,7 +1,7 @@
 from comfy_api.latest import ComfyExtension, io
 import folder_paths
 
-from . import api, boxes, decisions, media, model_catalog, semantics as s, skills, suggestions
+from . import api, boxes, decisions, media, model_catalog, reference, semantics as s, skills, suggestions
 
 
 def jev_connection_inputs():
@@ -266,7 +266,50 @@ class JevBoxRegion(io.ComfyNode):
         return io.NodeOutput(*boxes.region(images, box_data, padding, on_missing))
 
 
-NODE_CLASSES = [JevInterpret, OpenRouterText, JevSkillChoice, JevFindBox, JevBoxRegion]
+class JevReferenceEvaluate(io.ComfyNode):
+    @classmethod
+    def define_schema(cls):
+        choices = reference.model_choices()
+        return io.Schema(
+            node_id="JevReferenceEvaluate", display_name="Jev Reference Evaluate", category="Jev",
+            description="Evaluate one selected image against one separately selected reference. Jev only. The evaluation image is state; the reference is in the question/rubric. No batch pairing or image generation.",
+            inputs=[
+                io.Image.Input("images", tooltip="Image batch to evaluate. Only image_index is sent."),
+                io.Image.Input("reference_images", tooltip="Separate reference batch. Only reference_index is sent; it is never implicitly paired with the target batch."),
+                io.String.Input("instructions", multiline=True, default="Does the evaluation image show the same product as the reference? Ignore background changes."),
+                io.Combo.Input("task", options=["match", "score"], default="match",
+                               tooltip="match returns Noul match probability. score returns a normalized 3-level rubric score, with separate confidence in details."),
+                io.Int.Input("image_index", default=0, min=0),
+                io.Int.Input("reference_index", default=0, min=0),
+                io.Combo.Input("model", options=[*choices["openrouter"], *choices["typesafe"]], default="typesafe/jev-1.14",
+                               extra_dict={"jev_provider_models": choices}),
+                io.String.Input("api_key", default="", tooltip="Empty uses the selected provider's environment key. Keys entered here are saved with workflows."),
+                io.Int.Input("refresh", default=0, min=0, control_after_generate=io.ControlAfterGenerate.fixed),
+                io.Combo.Input("provider", options=["openrouter", "typesafe"], default="openrouter"),
+                io.Combo.Input("reference_placement", options=["instructions", "criteria"], default="instructions", optional=True, advanced=True,
+                               tooltip="instructions: the reference illustrates the task. criteria: the reference illustrates the positive/highest rubric level."),
+                io.Float.Input("threshold", default=0.8, min=0, max=1, step=0.01, optional=True, advanced=True),
+                io.Float.Input("min_confidence", default=0.5, min=0, max=1, step=0.01, optional=True, advanced=True,
+                               tooltip="Score task only. Noul has no separate confidence; its match probability is the value."),
+            ], outputs=[io.Float.Output(display_name="value"), io.Boolean.Output(display_name="accepted"),
+                        io.Dict.Output(display_name="details"), io.String.Output(display_name="response_json")],
+        )
+
+    @classmethod
+    async def execute(cls, images, reference_images, instructions, task="match", image_index=0, reference_index=0,
+                      model="typesafe/jev-1.14", api_key="", refresh=0, provider="openrouter",
+                      reference_placement="instructions", threshold=0.8, min_confidence=0.5):
+        s._probability(threshold, "threshold")
+        s._probability(min_confidence, "min_confidence")
+        state, questions, metadata = reference.prepare(images, reference_images, instructions, task,
+            image_index, reference_index, reference_placement, model, provider)
+        response = await api.evaluate(state, questions, model, provider=provider, api_key=api_key)
+        value, accepted, details = reference.collect(response, questions["evaluation"], task, threshold,
+            min_confidence, metadata, reference_placement, provider)
+        return io.NodeOutput(value, accepted, details, s.dumps(response))
+
+
+NODE_CLASSES = [JevInterpret, OpenRouterText, JevSkillChoice, JevFindBox, JevBoxRegion, JevReferenceEvaluate]
 
 
 class JevExtension(ComfyExtension):

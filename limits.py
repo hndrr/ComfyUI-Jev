@@ -17,7 +17,9 @@ IMAGE_COUNTS = {"openai/gpt-6-luna-decisions": 128, "cloudflare/clef": 4,
 
 
 def is_jev(model, provider):
-    return model in (TYPESAFE_JEV if provider == "typesafe" else OPENROUTER_JEV) if provider in ("typesafe", "openrouter") else False
+    if provider == "typesafe":
+        return model in TYPESAFE_JEV
+    return provider == "openrouter" and model in OPENROUTER_JEV
 
 
 def questions(questions, model, provider):
