@@ -22,6 +22,8 @@ Required controls are `images`, `target`, `image_index` (default 0), `model`, `a
 
 The pinned default is `typesafe/jev-1.14`; `~typesafe/jev-latest` is also offered. Jev 1.13 and other Decisions models cannot answer Box questions. The node uses the existing OpenRouter transport. Direct TypeSafe image requests require a separate assets representation and experimental header, so direct TypeSafe is outside this feature's scope. Existing judgment nodes retain their inputs and behavior.
 
+These two Box models retain their verified image support even if live or cached catalog metadata omits `image`. Other models still require image support in the catalog.
+
 An upload copy is resized to Jev's documented dimensions when necessary. Original pixels are retained for cropping. Very narrow panoramas that cannot fit the allowed aspect ratio require explicit cropping or padding before both Box nodes. `upload_size` records the actual size sent. Enlarging a small image does not recover missing detail.
 
 Outputs:
