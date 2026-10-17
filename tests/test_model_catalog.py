@@ -5,6 +5,8 @@ import tempfile
 import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import torch
+
 from test_jev import api, n, package
 
 
@@ -146,6 +148,47 @@ class CatalogTests(unittest.IsolatedAsyncioTestCase):
             await catalog.load_decisions()
         self.assertEqual(catalog.decision_model_ids, ("vendor/decision",))
         self.assertEqual(catalog.decision_models["vendor/decision"]["output_modalities"], ["decisions"])
+
+    async def assert_box_images_survive_text_only_metadata(self):
+        images = torch.zeros((1, 280, 280, 3))
+        response = {"answers": {
+            "target": {"type": "box", "box": {"left": 0.1, "top": 0.2, "right": 0.8, "bottom": 0.9}, "confidence": 0.9},
+            "present": {"type": "noul", "noul": 0.95},
+        }}
+        with patch.object(api, "_post_json", new_callable=AsyncMock, return_value=response) as post:
+            for model_id in package.decisions.BOX_MODELS:
+                with self.subTest(model=model_id):
+                    self.assertEqual(catalog.decision_models[model_id]["input_modalities"], ["text"])
+                    result = await n.JevFindBox.execute(images, "the mug", model=model_id)
+                    self.assertTrue(result.result[1])
+                    self.assertEqual(post.call_args.args[0], api.OPENROUTER_ENDPOINT)
+                    self.assertEqual(post.call_args.args[1]["model"], model_id)
+                    self.assertEqual(post.call_args.args[1]["state"][1]["type"], "image_url")
+            self.assertEqual(post.await_count, 2)
+            context = package.media.prepare("photo", images=images)
+            questions = {"present": {"type": "noul", "instructions": "Is there a mug?"}}
+            for model_id in ("cloudflare/clef", "openai/gpt-6-luna-decisions", "vendor/text-decision", "vendor/unknown"):
+                with self.subTest(other_model=model_id), self.assertRaisesRegex(ValueError, "verified image input"):
+                    await api.evaluate(context, questions, model_id, provider="openrouter")
+            self.assertEqual(post.await_count, 2)
+
+    async def test_box_images_survive_text_only_live_metadata(self):
+        data = [model(model_id, outputs=["decisions"]) for model_id in (
+            *package.decisions.BOX_MODELS, "cloudflare/clef", "openai/gpt-6-luna-decisions", "vendor/text-decision",
+        )]
+        self.decision_response.text.return_value = json.dumps({"data": data})
+        await catalog.load_decisions()
+        await self.assert_box_images_survive_text_only_metadata()
+
+    async def test_box_images_survive_text_only_cache_when_catalog_fails(self):
+        data = [model(model_id, outputs=["decisions"]) for model_id in (
+            *package.decisions.BOX_MODELS, "cloudflare/clef", "openai/gpt-6-luna-decisions", "vendor/text-decision",
+        )]
+        catalog.DECISIONS_CACHE_PATH.write_text(json.dumps({"data": data, "available": [item["id"] for item in data]}))
+        self.decision_response.status = 503
+        with self.assertLogs(level="WARNING"):
+            await catalog.load_decisions()
+        await self.assert_box_images_survive_text_only_metadata()
 
     async def test_removed_decision_is_retained_only_for_saved_schema(self):
         await catalog.load_decisions()

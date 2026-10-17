@@ -79,7 +79,8 @@ def payload(state, questions, model, provider):
             from . import model_catalog
 
             architecture = model_catalog.decision_models.get(model, {})
-            if provider != "openrouter" or "image" not in architecture.get("input_modalities", []):
+            supports_images = model in BOX_MODELS or "image" in architecture.get("input_modalities", [])
+            if provider != "openrouter" or not supports_images:
                 raise ValueError("Image Decisions require an OpenRouter Decisions model with verified image input support in the catalog")
             if spec and len(image_parts) > spec["images"]:
                 raise ValueError(f"{model} accepts at most {spec['images']} images; select a smaller batch explicitly")

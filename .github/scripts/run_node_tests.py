@@ -13,7 +13,7 @@ REQUIRED_MODULES = {
     'test_execution', 'test_jev', 'test_model_catalog', 'test_multimodal',
     'test_skill_workflow', 'test_skills', 'test_suggestions', 'test_box',
 }
-MINIMUM_TESTS = 106
+MINIMUM_TESTS = 108
 
 
 def test_ids(suite):
