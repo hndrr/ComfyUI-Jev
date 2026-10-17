@@ -28,5 +28,42 @@ export function checkModelPicker(update) {
     update(node, choices);
     check(model.value === '~typesafe/jev-latest' && !model.options.values.includes('custom'), 'Fresh choice removes compatibility option');
     check(!choices.openrouter.includes('vendor/retired') && !choices.openrouter.includes('custom'), 'Catalog choices are not mutated');
+    const boxChoices = {openrouter:['typesafe/jev-1.14','~typesafe/jev-latest'], typesafe:['jev-1.14.0','jev-preview']};
+    const boxKnown = Object.values(boxChoices).flat();
+    const boxModel = {name:'model', value:'typesafe/jev-1.14', options:{}};
+    const boxProvider = {name:'provider', value:'openrouter'};
+    const box = {widgets:[boxModel,boxProvider]};
+    update(box, boxChoices);
+    check(boxModel.value === 'typesafe/jev-1.14', 'Box retains pinned OpenRouter default');
+    boxProvider.value = 'typesafe'; update(box, boxChoices);
+    check(boxModel.value === 'jev-1.14.0', 'Box switches pinned provider ID');
+    check(boxModel.options.values.join() === boxChoices.typesafe.join(), 'Box only offers direct Box models');
+    boxModel.value = 'jev-preview'; boxProvider.value = 'openrouter'; update(box, boxChoices);
+    check(boxModel.value === '~typesafe/jev-latest', 'Box preview alias');
+    boxProvider.value = 'typesafe'; update(box, boxChoices);
+    check(boxModel.value === 'jev-preview', 'Box reverse alias avoids unsupported direct latest');
+    boxModel.value = 'future/box'; update(box, boxChoices, true, boxKnown);
+    check(boxModel.value === 'future/box', 'Plain Box combo preserves saved IDs without DynamicCombo custom');
+    check(!boxKnown.includes('future/box') && !boxChoices.typesafe.includes('future/box'), 'Box schema choices are not mutated');
+    return passed;
+}
+
+export function checkModelRegistration(extension) {
+    let passed = 0;
+    const check = (ok, message) => { if (!ok) throw new Error(message); passed++; };
+    const choices = {openrouter:['typesafe/jev-1.14','~typesafe/jev-latest'], typesafe:['jev-1.14.0','jev-preview']};
+    const options = Object.values(choices).flat();
+    class BoxNode {
+        constructor() {
+            this.widgets = [{name:'model',value:'typesafe/jev-1.14',options:{}}, {name:'provider',value:'openrouter'}];
+        }
+    }
+    extension.beforeRegisterNodeDef(BoxNode, {name:'JevFindBox',input:{required:{model:[options,{jev_provider_models:choices}]}}});
+    const node = new BoxNode(); node.onNodeCreated();
+    check(node.widgets[0].options.values.join() === choices.openrouter.join(), 'Registered plain Combo schema initializes');
+    node.widgets[1].value = 'typesafe'; node.widgets[1].callback('typesafe');
+    check(node.widgets[0].value === 'jev-1.14.0', 'Registered provider callback switches Box model');
+    node.widgets[0].value = 'jev-preview'; node.onConfigure({});
+    check(node.widgets[0].value === 'jev-preview', 'Registered workflow restore preserves direct preview');
     return passed;
 }
