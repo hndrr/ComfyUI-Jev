@@ -18,7 +18,8 @@
       "api_key": "",
       "refresh": 0,
       "presence_threshold": 0.8,
-      "min_confidence": 0.5
+      "min_confidence": 0.5,
+      "provider": "openrouter"
     }
   },
   "3": {

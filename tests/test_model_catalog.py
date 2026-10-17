@@ -133,7 +133,7 @@ class CatalogTests(unittest.IsolatedAsyncioTestCase):
         for cls in (n.JevInterpret, n.JevSkillChoice):
             schema = cls.INPUT_TYPES()["required"]
             config = schema["model"][1]
-            self.assertEqual(config["jev_provider_models"], {"typesafe": ["jev-latest", "jev-preview", "jev-1.13.0", "custom"], "openrouter": ["vendor/decision"]})
+            self.assertEqual(config["jev_provider_models"], {"typesafe": [*catalog.TYPESAFE_MODELS, "custom"], "openrouter": ["vendor/decision"]})
             self.assertNotIn("vendor/new-model", [option["key"] for option in config["options"]])
             self.assertIn("custom", [option["key"] for option in config["options"]])  # saved DynamicCombo inputs
             self.assertEqual(schema["provider"][1]["options"], ["typesafe", "openrouter"])

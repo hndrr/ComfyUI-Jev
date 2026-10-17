@@ -1,9 +1,10 @@
-"""OpenRouter Decisions wire contract and limits, independent of ComfyUI UI code."""
+"""TypeSafe and OpenRouter wire contracts and limits, independent of ComfyUI UI code."""
 
 import base64
 import binascii
 from io import BytesIO
 import json
+import uuid
 
 from .media import Context
 
@@ -18,6 +19,9 @@ MODELS = {
 CLEF_REQUEST_BUDGET = 256 * 1024
 # Box support is not implied by image support in the model catalog.
 BOX_MODELS = ("typesafe/jev-1.14", "~typesafe/jev-latest")
+TYPESAFE_BOX_MODELS = ("jev-1.14.0", "jev-preview")
+TYPESAFE_IMAGE_MODELS = (*TYPESAFE_BOX_MODELS, "jev-latest", "jev-1.13.0")
+TYPESAFE_REQUEST_BUDGET = 32 * 1024 * 1024
 
 
 def encode_payload(body):
@@ -54,19 +58,24 @@ def _image(part):
         # verify() alone can accept a JPEG with a truncated pixel stream.
         with Image.open(BytesIO(data)) as image:
             image.load()
+            info = {"format": image.format.lower(), "data_base64": encoded,
+                    "width": image.width, "height": image.height,
+                    "size_bytes": len(data), "animated": getattr(image, "is_animated", False)}
     except (binascii.Error, OSError, UnidentifiedImageError, Image.DecompressionBombError):
         raise ValueError("Invalid or oversized image data URL") from None
-    return len(encoded)
+    return info
 
 
 def payload(state, questions, model, provider):
     has_box = any(question.get("type") == "box" for question in questions.values())
-    if has_box and (provider != "openrouter" or model not in BOX_MODELS):
-        raise ValueError("Box requires OpenRouter with typesafe/jev-1.14 or ~typesafe/jev-latest; Jev 1.13 and other Decisions models do not support Box")
+    box_models = TYPESAFE_BOX_MODELS if provider == "typesafe" else BOX_MODELS
+    if has_box and model not in box_models:
+        raise ValueError("Box requires Jev 1.14: typesafe uses jev-1.14.0/jev-preview; openrouter uses typesafe/jev-1.14/~typesafe/jev-latest")
     spec = MODELS.get(model)
     if spec and provider != "openrouter":
         raise ValueError(f"{model} requires provider=openrouter")
     image_parts = []
+    assets = {}
     if isinstance(state, Context):
         items = list(state.parts)
         for part in items:
@@ -76,22 +85,45 @@ def payload(state, questions, model, provider):
                 raise ValueError("These Decisions models accept text and images, not native audio/video/files. Connect existing ComfyUI transcription or frame/page extraction nodes.")
             image_parts.append(part)
         if image_parts:
-            from . import model_catalog
+            if provider == "typesafe":
+                if model not in TYPESAFE_IMAGE_MODELS:
+                    raise ValueError("TypeSafe images require a supported Jev model")
+                state = []
+                for part in items:
+                    if isinstance(part, str):
+                        state.append(part)
+                        continue
+                    image = _image(part)
+                    if image["format"] not in ("png", "jpeg") or image["animated"]:
+                        raise ValueError("TypeSafe images require still PNG or JPEG files")
+                    if min(image["width"], image["height"]) < 280 or max(image["width"], image["height"]) > 1568:
+                        raise ValueError("TypeSafe images must be 280–1568 pixels on each side; resize before connecting images")
+                    if image["size_bytes"] > 16 * 1024 * 1024:
+                        raise ValueError("TypeSafe image file exceeds 16 MiB")
+                    reference = str(uuid.uuid4())
+                    assets[reference] = {"type": "image", "format": image["format"], "data_base64": image["data_base64"]}
+                    state.append(reference)
+            else:
+                from . import model_catalog
 
-            architecture = model_catalog.decision_models.get(model, {})
-            supports_images = model in BOX_MODELS or "image" in architecture.get("input_modalities", [])
-            if provider != "openrouter" or not supports_images:
-                raise ValueError("Image Decisions require an OpenRouter Decisions model with verified image input support in the catalog")
-            if spec and len(image_parts) > spec["images"]:
-                raise ValueError(f"{model} accepts at most {spec['images']} images; select a smaller batch explicitly")
-            for part in image_parts:
-                _image(part)
-            state = items  # Images are DIRECT state items; text items are plain strings.
+                architecture = model_catalog.decision_models.get(model, {})
+                supports_images = model in BOX_MODELS or "image" in architecture.get("input_modalities", [])
+                if provider != "openrouter" or not supports_images:
+                    raise ValueError("Image Decisions require an OpenRouter Decisions model with verified image input support in the catalog")
+                if spec and len(image_parts) > spec["images"]:
+                    raise ValueError(f"{model} accepts at most {spec['images']} images; select a smaller batch explicitly")
+                for part in image_parts:
+                    _image(part)
+                state = items  # Images are DIRECT state items; text items are plain strings.
         else:
             state = "\n".join(items)
     if has_box and not image_parts:
         raise ValueError("Box requires an image; connect images to Jev Find Box")
     result = {"model": model, "state": state, "questions": questions}
+    if assets:
+        result["assets"] = assets
+        if len(encode_payload(result)) > TYPESAFE_REQUEST_BUDGET:
+            raise ValueError("TypeSafe request exceeds 32 MiB; reduce image size or batch count")
     if spec:
         if len(questions) > spec["questions"]:
             raise ValueError(f"{model} accepts at most {spec['questions']} questions; reduce candidates or shortlist size")

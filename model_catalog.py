@@ -9,7 +9,7 @@ from .semantics import dumps, loads
 CACHE_PATH = Path(__file__).resolve().parent / ".cache" / "openrouter_models.json"
 model_ids = ()
 DECISIONS_CACHE_PATH = CACHE_PATH.with_name("openrouter_decisions.json")
-TYPESAFE_MODELS = ("jev-latest", "jev-preview", "jev-1.13.0")
+TYPESAFE_MODELS = ("jev-latest", "jev-preview", "jev-1.13.0", "jev-1.14.0")
 # Offline bootstrap for already-supported routes; live catalog metadata wins.
 BUILTIN_DECISIONS = {
     model: {"input_modalities": ["text", "image"], "output_modalities": ["decisions"]}

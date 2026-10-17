@@ -101,7 +101,7 @@ The entire image batch and optional `content_json` parts are included in both ra
 
 ## First workflow
 
-For image workflows, connect **Load Image → Jev Find Box → Jev Box Region**, and also connect Load Image to Box Region's `images`. Describe one subject, such as `the mug nearest the sink`. Find Box uses Jev 1.14 on OpenRouter and requires `OPENROUTER_API_KEY`. Preview the crop and outline, or connect the full-size rectangular mask to regional editing nodes. See the [Box guide](docs/box.md) and [ready-to-load example](examples/05_find_box.workflow.json) for padding, batch frame selection, coordinates, and safe handling when no target is accepted. Box is experimental and does not produce a segmentation mask.
+For image workflows, connect **Load Image → Jev Find Box → Jev Box Region**, and also connect Load Image to Box Region's `images`. Describe one subject, such as `the mug nearest the sink`. Find Box uses Jev 1.14 through `provider=openrouter` (default, `OPENROUTER_API_KEY`) or `provider=typesafe` (direct, `TYPESAFE_API_KEY`). The model list follows the provider; direct Box uses `jev-1.14.0` or `jev-preview`. Preview the crop and outline, or connect the full-size rectangular mask to regional editing nodes. See the [Box guide](docs/box.md) and [ready-to-load example](examples/05_find_box.workflow.json) for padding, batch frame selection, coordinates, and safe handling when no target is accepted. Box is experimental and does not produce a segmentation mask.
 
 After setting your TypeSafe key, try judging whether a sentence meets a condition.
 
@@ -119,7 +119,7 @@ To branch on the result, use standard nodes such as **Compare Text** and **Switc
 
 The bundled workflows demonstrate ways to use judgment results, such as choosing a prompt for image generation or selecting local Skills. Save a `.workflow.json` file below and drag it into ComfyUI. The example text is in English.
 
-**The bundled examples are saved with `provider = openrouter`. To use TypeSafe, change the Jev node's `provider` to `typesafe` after loading the workflow.** Text generation with OpenRouter Text still requires an OpenRouter key.
+**Examples 01–05 are saved with `provider = openrouter`; example 06 uses TypeSafe direct. To switch an example, change the Jev node's `provider` and select a compatible model.** Text generation with OpenRouter Text still requires an OpenRouter key.
 
 | Example | What it does | Needed in addition to the Jev API key |
 | --- | --- | --- |
@@ -128,6 +128,7 @@ The bundled workflows demonstrate ways to use judgment results, such as choosing
 | [03_select_and_expand.workflow.json](examples/03_select_and_expand.workflow.json) | Generate and select a concept, then expand it into a detailed image prompt | OpenRouter key and checkpoint |
 | [04_skill_choice.workflow.json](examples/04_skill_choice.workflow.json) | Select local Skills and preview their contents and priorities | Installed Skills |
 | [05_find_box.workflow.json](examples/05_find_box.workflow.json) | Locate a subject, preview its crop, rectangle mask, outline, and coordinates | OpenRouter key and an image |
+| [06_find_box_typesafe.workflow.json](examples/06_find_box_typesafe.workflow.json) | The same Box workflow through TypeSafe direct | TypeSafe key and an image |
 
 For the three image generation examples, replace `YOUR_SD_OR_SDXL_CHECKPOINT.safetensors` in Checkpoint Loader with an installed SD 1.5 / SDXL checkpoint that includes CLIP and VAE. Adjust image size, seed, and steps in the standard nodes.
 

@@ -18,7 +18,7 @@ Jevによる文章の解釈・判定をComfyUIで使うためのカスタムノ�
 
 ## 画像から被写体を探す
 
-**Load Image → Jev Find Box → Jev Box Region** と接続し、Load Imageの出力をBox Regionの`images`にも接続します。`target`に「流し台に一番近いマグカップ」など、1つに特定できる対象を記述してください。Find BoxはOpenRouter上のJev 1.14を使い、`OPENROUTER_API_KEY`が必要です。切り抜き、元画像サイズの矩形マスク、枠付きプレビューを出力できます。これは実験的な機能で、被写体の輪郭を抽出するセグメンテーションではありません。
+**Load Image → Jev Find Box → Jev Box Region** と接続し、Load Imageの出力をBox Regionの`images`にも接続します。`target`に「流し台に一番近いマグカップ」など、1つに特定できる対象を記述してください。Find Boxは`provider=openrouter`（既定、`OPENROUTER_API_KEY`）または`provider=typesafe`（直接接続、`TYPESAFE_API_KEY`）でJev 1.14を使います。モデル候補はproviderに合わせて切り替わり、TypeSafe直接接続のBoxでは`jev-1.14.0`または`jev-preview`を選びます。切り抜き、元画像サイズの矩形マスク、枠付きプレビューを出力できます。これは実験的な機能で、被写体の輪郭を抽出するセグメンテーションではありません。
 
 [サンプル](examples/05_find_box.workflow.json)を読み込み、画像を選択して実行できます。存在判定または信頼度が設定値を下回ると`found=false`となり、既定では切り抜きを停止します。`image_index`でバッチ内の1枚だけを選び、`padding`はAPIを再実行せずに調整できます。[使い方・座標・制限の詳細（英語）](docs/box.md)も参照してください。
 
@@ -123,7 +123,7 @@ Jev Interpret → Preview as Text
 
 判定結果を利用する例として、プロンプトを選んで画像を生成するワークフローや、ローカルのSkillを選ぶワークフローを同梱しています。下の`.workflow.json`を保存し、ComfyUIへドラッグして読み込んでください。サンプル内の文章は英語です。
 
-**同梱サンプルは`provider = openrouter`で保存されています。TypeSafeを使う場合は、読み込み後にJevノードの`provider`を`typesafe`へ変更してください。** OpenRouter Textの文章生成には引き続きOpenRouterのキーが必要です。
+**サンプル01〜05は`provider = openrouter`、06はTypeSafe直接接続で保存されています。切り替える場合は、Jevノードの`provider`と対応モデルを選択してください。** OpenRouter Textの文章生成には引き続きOpenRouterのキーが必要です。
 
 | サンプル | 内容 | JevのAPIキーに加えて必要なもの |
 | --- | --- | --- |

@@ -75,8 +75,8 @@ class BoxTests(unittest.TestCase):
         questions = s.box_questions("the red mug")
         self.assertEqual(set(questions["target"]), {"type", "instructions"})
         for model, provider in (("typesafe/jev-1.13", "openrouter"), ("cloudflare/clef", "openrouter"),
-                                ("jev-preview", "typesafe")):
-            with self.subTest(model=model), self.assertRaisesRegex(ValueError, "Box requires OpenRouter"):
+                                ("jev-latest", "typesafe")):
+            with self.subTest(model=model), self.assertRaisesRegex(ValueError, "Box requires Jev 1.14"):
                 decisions.payload(state, questions, model, provider)
         with self.assertRaisesRegex(ValueError, "requires an image"):
             decisions.payload("no image", questions, decisions.BOX_MODELS[0], "openrouter")
@@ -273,51 +273,54 @@ class BoxNodeTests(unittest.IsolatedAsyncioTestCase):
         self.addCleanup(lambda: (nodes.NODE_CLASS_MAPPINGS.clear(), nodes.NODE_CLASS_MAPPINGS.update(saved_nodes)))
         for cls in (n.JevFindBox, n.JevBoxRegion, MaskToImage, PreviewAny, nodes.LoadImage, nodes.PreviewImage):
             nodes.NODE_CLASS_MAPPINGS[cls.GET_SCHEMA().node_id if hasattr(cls, "GET_SCHEMA") else cls.__name__] = cls
-        graph = json.loads((ROOT / "examples/05_find_box.api.json").read_text())
-        with tempfile.TemporaryDirectory() as directory, patch.object(folder_paths, "get_input_directory", return_value=directory), patch.object(folder_paths, "get_temp_directory", return_value=directory), patch.object(api, "evaluate", new_callable=AsyncMock, return_value=response()) as evaluate:
-            Image.new("RGB", (400, 300), "gray").save(Path(directory) / "YOUR_IMAGE.png")
-            valid, error, outputs, details = await validate_prompt("box-example", graph, None)
-            self.assertTrue(valid, (error, details))
-            executor = PromptExecutor(Server(), cache_type=False, cache_args={"ram": 0, "ram_inactive": 0})
-            await executor.execute_async(graph, "box-example", execute_outputs=outputs)
-            self.assertTrue(executor.success, executor.status_messages)
-            evaluate.assert_awaited_once()
-            self.assertEqual(len(list(Path(directory).glob("ComfyUI_temp_*.png"))), 3)
-            result = (await executor.caches.outputs.get("8")).outputs[0][0]
-            self.assertEqual(json.loads(result)["image_index"], 0)
-            self.assertIn('"effective_box"', result)
+        for stem in ("05_find_box", "06_find_box_typesafe"):
+            graph = json.loads((ROOT / f"examples/{stem}.api.json").read_text())
+            with tempfile.TemporaryDirectory() as directory, patch.object(folder_paths, "get_input_directory", return_value=directory), patch.object(folder_paths, "get_temp_directory", return_value=directory), patch.object(api, "evaluate", new_callable=AsyncMock, return_value=response()) as evaluate:
+                Image.new("RGB", (400, 300), "gray").save(Path(directory) / "YOUR_IMAGE.png")
+                valid, error, outputs, details = await validate_prompt("box-example", graph, None)
+                self.assertTrue(valid, (error, details))
+                executor = PromptExecutor(Server(), cache_type=False, cache_args={"ram": 0, "ram_inactive": 0})
+                await executor.execute_async(graph, "box-example", execute_outputs=outputs)
+                self.assertTrue(executor.success, executor.status_messages)
+                evaluate.assert_awaited_once()
+                self.assertEqual(evaluate.call_args.kwargs["provider"], graph["2"]["inputs"]["provider"])
+                self.assertEqual(len(list(Path(directory).glob("ComfyUI_temp_*.png"))), 3)
+                result = (await executor.caches.outputs.get("8")).outputs[0][0]
+                self.assertEqual(json.loads(result)["image_index"], 0)
+                self.assertIn('"effective_box"', result)
 
     def test_workflow_matches_api_graph_and_box_schemas(self):
-        workflow = json.loads((ROOT / "examples/05_find_box.workflow.json").read_text())
-        graph = json.loads((ROOT / "examples/05_find_box.api.json").read_text())
-        links = {link[0]: link for link in workflow["links"]}
-        by_id = {node["id"]: node for node in workflow["nodes"]}
-        self.assertEqual({str(node_id) for node_id in by_id}, set(graph))
-        for node in workflow["nodes"]:
-            expected = graph[str(node["id"])]
-            self.assertEqual(node["type"], expected["class_type"])
-            for name, value in expected["inputs"].items():
-                if isinstance(value, list):
-                    slot = next(slot for slot in node["inputs"] if slot["name"] == name)
-                    link = links[slot["link"]]
-                    self.assertEqual([str(link[1]), link[2]], value)
-                    self.assertEqual(link[3], node["id"])
-                    self.assertIn(link[0], by_id[link[1]]["outputs"][link[2]]["links"])
-                    self.assertEqual(node["inputs"][link[4]]["name"], name)
-                else:
-                    self.assertEqual(node["widgets_values_named"][name], value)
-        for node_id, cls in ((2, n.JevFindBox), (3, n.JevBoxRegion)):
-            node = by_id[node_id]
-            schema = cls.INPUT_TYPES()
-            names = list(schema["required"]) + list(schema.get("optional", {}))
-            self.assertEqual([slot["name"] for slot in node["inputs"]], names)
-            widget_names = [name for name in names if name not in ("images", "box_data")]
-            if "refresh" in widget_names:
-                widget_names.insert(widget_names.index("refresh") + 1, "control_after_generate")
-            self.assertEqual(node["widgets_values"], [node["widgets_values_named"][name] for name in widget_names])
-            self.assertEqual([output["type"] for output in node["outputs"]], cls.RETURN_TYPES)
-        self.assertEqual(by_id[2]["widgets_values_named"]["api_key"], "")
-        self.assertEqual(by_id[2]["widgets_values_named"]["control_after_generate"], "fixed")
+        for stem in ("05_find_box", "06_find_box_typesafe"):
+            workflow = json.loads((ROOT / f"examples/{stem}.workflow.json").read_text())
+            graph = json.loads((ROOT / f"examples/{stem}.api.json").read_text())
+            links = {link[0]: link for link in workflow["links"]}
+            by_id = {node["id"]: node for node in workflow["nodes"]}
+            self.assertEqual({str(node_id) for node_id in by_id}, set(graph))
+            for node in workflow["nodes"]:
+                expected = graph[str(node["id"])]
+                self.assertEqual(node["type"], expected["class_type"])
+                for name, value in expected["inputs"].items():
+                    if isinstance(value, list):
+                        slot = next(slot for slot in node["inputs"] if slot["name"] == name)
+                        link = links[slot["link"]]
+                        self.assertEqual([str(link[1]), link[2]], value)
+                        self.assertEqual(link[3], node["id"])
+                        self.assertIn(link[0], by_id[link[1]]["outputs"][link[2]]["links"])
+                        self.assertEqual(node["inputs"][link[4]]["name"], name)
+                    else:
+                        self.assertEqual(node["widgets_values_named"][name], value)
+            for node_id, cls in ((2, n.JevFindBox), (3, n.JevBoxRegion)):
+                node = by_id[node_id]
+                schema = cls.INPUT_TYPES()
+                names = list(schema["required"]) + list(schema.get("optional", {}))
+                self.assertEqual([slot["name"] for slot in node["inputs"]], names)
+                widget_names = [name for name in names if name not in ("images", "box_data")]
+                if "refresh" in widget_names:
+                    widget_names.insert(widget_names.index("refresh") + 1, "control_after_generate")
+                self.assertEqual(node["widgets_values"], [node["widgets_values_named"][name] for name in widget_names])
+                self.assertEqual([output["type"] for output in node["outputs"]], cls.RETURN_TYPES)
+            self.assertEqual(by_id[2]["widgets_values_named"]["api_key"], "")
+            self.assertEqual(by_id[2]["widgets_values_named"]["control_after_generate"], "fixed")
 
 
 if __name__ == "__main__":

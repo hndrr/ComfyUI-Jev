@@ -29,10 +29,11 @@ def image_fingerprint(frame):
     return digest.hexdigest()
 
 
-def context(frame):
+def context(frame, provider="openrouter"):
     """Resize only the upload copy; normalized edges still address the original."""
     _, height, width, _ = frame.shape
-    lower = max(256 / min(width, height), math.sqrt(78400 / (width * height)))
+    minimum = 280 if provider == "typesafe" else 256
+    lower = max(minimum / min(width, height), math.sqrt(78400 / (width * height)))
     upper = 1568 / max(width, height)
     if lower > upper:
         raise ValueError("Jev cannot read this extreme aspect ratio; crop or pad the image before Jev Find Box")
