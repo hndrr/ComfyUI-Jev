@@ -7,6 +7,7 @@ import json
 import uuid
 
 from .media import Context
+from . import limits
 
 
 # https://openrouter.ai/docs/guides/community/multimodal-decisions
@@ -26,7 +27,10 @@ TYPESAFE_REQUEST_BUDGET = 32 * 1024 * 1024
 
 def encode_payload(body):
     """Serialize exactly the bytes used for both the size check and HTTP body."""
-    return json.dumps(body).encode("utf-8")
+    try:
+        return json.dumps(body, allow_nan=False).encode("utf-8")
+    except (ValueError, RecursionError):
+        raise ValueError("Request requires finite JSON values and supported nesting; flatten nested data") from None
 
 
 def context_warnings(state, model, provider):
@@ -67,6 +71,7 @@ def _image(part):
 
 
 def payload(state, questions, model, provider):
+    limits.questions(questions, model, provider)
     has_box = any(question.get("type") == "box" for question in questions.values())
     box_models = TYPESAFE_BOX_MODELS if provider == "typesafe" else BOX_MODELS
     if has_box and model not in box_models:
@@ -75,6 +80,7 @@ def payload(state, questions, model, provider):
     if spec and provider != "openrouter":
         raise ValueError(f"{model} requires provider=openrouter")
     image_parts = []
+    image_info = []
     assets = {}
     if isinstance(state, Context):
         items = list(state.parts)
@@ -94,12 +100,7 @@ def payload(state, questions, model, provider):
                         state.append(part)
                         continue
                     image = _image(part)
-                    if image["format"] not in ("png", "jpeg") or image["animated"]:
-                        raise ValueError("TypeSafe images require still PNG or JPEG files")
-                    if min(image["width"], image["height"]) < 280 or max(image["width"], image["height"]) > 1568:
-                        raise ValueError("TypeSafe images must be 280–1568 pixels on each side; resize before connecting images")
-                    if image["size_bytes"] > 16 * 1024 * 1024:
-                        raise ValueError("TypeSafe image file exceeds 16 MiB")
+                    image_info.append(image)
                     reference = str(uuid.uuid4())
                     assets[reference] = {"type": "image", "format": image["format"], "data_base64": image["data_base64"]}
                     state.append(reference)
@@ -107,19 +108,19 @@ def payload(state, questions, model, provider):
                 from . import model_catalog
 
                 architecture = model_catalog.decision_models.get(model, {})
-                supports_images = model in BOX_MODELS or "image" in architecture.get("input_modalities", [])
+                supports_images = limits.is_jev(model, provider) or "image" in architecture.get("input_modalities", [])
                 if provider != "openrouter" or not supports_images:
                     raise ValueError("Image Decisions require an OpenRouter Decisions model with verified image input support in the catalog")
                 if spec and len(image_parts) > spec["images"]:
                     raise ValueError(f"{model} accepts at most {spec['images']} images; select a smaller batch explicitly")
-                for part in image_parts:
-                    _image(part)
+                image_info = [_image(part) for part in image_parts]
                 state = items  # Images are DIRECT state items; text items are plain strings.
         else:
             state = "\n".join(items)
     if has_box and not image_parts:
         raise ValueError("Box requires an image; connect images to Jev Find Box")
     result = {"model": model, "state": state, "questions": questions}
+    limits.images(image_info, model, provider)
     if assets:
         result["assets"] = assets
         if len(encode_payload(result)) > TYPESAFE_REQUEST_BUDGET:
@@ -127,17 +128,11 @@ def payload(state, questions, model, provider):
     if spec:
         if len(questions) > spec["questions"]:
             raise ValueError(f"{model} accepts at most {spec['questions']} questions; reduce candidates or shortlist size")
-        if spec["provider"] == "cloudflare":
-            for question in questions.values():
-                count = len(question.get("criteria", []))
-                if question.get("type") == "choice" and not 2 <= count <= 255:
-                    raise ValueError("Clef choice questions require 2–255 candidates")
-                if question.get("type") == "score" and not 2 <= count <= 10:
-                    raise ValueError("Clef score questions require 2–10 levels")
     if image_parts and spec:
         # The public guide describes these native routes. Cheaper third-party routing
         # returned text-like guesses in the recorded Clef image/control experiment.
         result["provider"] = {"only": [spec["provider"]], "allow_fallbacks": False}
     if spec and spec["provider"] == "cloudflare" and len(encode_payload(result)) > CLEF_REQUEST_BUDGET:
         raise ValueError("Clef request exceeds the local conservative 256 KiB encoded request budget; shorten text or resize/recompress images with existing ComfyUI nodes")
+    limits.request(result, len(encode_payload(result)), model, provider, bool(image_parts))
     return result

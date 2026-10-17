@@ -11,9 +11,9 @@ from unittest.mock import patch
 ROOT = Path(__file__).resolve().parents[2]
 REQUIRED_MODULES = {
     'test_execution', 'test_jev', 'test_model_catalog', 'test_multimodal',
-    'test_skill_workflow', 'test_skills', 'test_suggestions', 'test_box', 'test_typesafe',
+    'test_skill_workflow', 'test_skills', 'test_suggestions', 'test_box', 'test_typesafe', 'test_limits',
 }
-MINIMUM_TESTS = 120
+MINIMUM_TESTS = 131
 
 
 def test_ids(suite):
