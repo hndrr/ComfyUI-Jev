@@ -28,5 +28,63 @@ export function checkModelPicker(update) {
     update(node, choices);
     check(model.value === '~typesafe/jev-latest' && !model.options.values.includes('custom'), 'Fresh choice removes compatibility option');
     check(!choices.openrouter.includes('vendor/retired') && !choices.openrouter.includes('custom'), 'Catalog choices are not mutated');
+    const boxChoices = {openrouter:['typesafe/jev-1.14','~typesafe/jev-latest'], typesafe:['jev-1.14.0','jev-preview']};
+    const boxKnown = Object.values(boxChoices).flat();
+    const boxModel = {name:'model', value:'typesafe/jev-1.14', options:{}};
+    const boxProvider = {name:'provider', value:'openrouter'};
+    const box = {widgets:[boxModel,boxProvider]};
+    update(box, boxChoices);
+    check(boxModel.value === 'typesafe/jev-1.14', 'Box retains pinned OpenRouter default');
+    boxProvider.value = 'typesafe'; update(box, boxChoices);
+    check(boxModel.value === 'jev-1.14.0', 'Box switches pinned provider ID');
+    check(boxModel.options.values.join() === boxChoices.typesafe.join(), 'Box only offers direct Box models');
+    boxModel.value = 'jev-preview'; boxProvider.value = 'openrouter'; update(box, boxChoices);
+    check(boxModel.value === '~typesafe/jev-latest', 'Box preview alias');
+    boxProvider.value = 'typesafe'; update(box, boxChoices);
+    check(boxModel.value === 'jev-preview', 'Box reverse alias avoids unsupported direct latest');
+    boxModel.value = 'future/box'; update(box, boxChoices, true, boxKnown);
+    check(boxModel.value === 'future/box', 'Plain Box combo preserves saved IDs without DynamicCombo custom');
+    check(!boxKnown.includes('future/box') && !boxChoices.typesafe.includes('future/box'), 'Box schema choices are not mutated');
+    return passed;
+}
+
+export function checkModelRegistration(extension) {
+    let passed = 0;
+    const check = (ok, message) => { if (!ok) throw new Error(message); passed++; };
+    const choices = {openrouter:['typesafe/jev-1.14','~typesafe/jev-latest'], typesafe:['jev-1.14.0','jev-preview']};
+    const options = Object.values(choices).flat();
+    for (const nodeName of ['JevFindBox', 'JevReferenceEvaluate', 'JevInterpret', 'JevSkillChoice']) {
+        class TestNode {
+            constructor() {
+                this.widgets = [{name:'model',value:'typesafe/jev-1.14',options:{}},
+                    {name:'provider',value:'openrouter'}, {name:'api_key',value:'dummy-router'}];
+            }
+            onConfigure(config) {
+                if (config.savedProvider) {
+                    this.widgets[1].value = config.savedProvider;
+                    this.widgets[2].value = config.savedKey;
+                    this.widgets[1].callback(config.savedProvider);
+                }
+            }
+        }
+        extension.beforeRegisterNodeDef(TestNode, {name:nodeName,input:{required:{model:[options,{jev_provider_models:choices}]}}});
+        const node = new TestNode(); node.onNodeCreated();
+        check(node.widgets[0].options.values.join() === choices.openrouter.join(), `${nodeName} schema initializes`);
+        node.widgets[1].callback('openrouter');
+        check(node.widgets[2].value === 'dummy-router', `${nodeName} unchanged provider retains its key`);
+        node.widgets[1].value = 'typesafe'; node.widgets[1].callback('typesafe');
+        check(node.widgets[0].value === 'jev-1.14.0' && node.widgets[2].value === '', `${nodeName} switches model and clears router key`);
+        node.widgets[2].value = 'dummy-direct';
+        node.widgets[1].value = 'openrouter'; node.widgets[1].callback('openrouter');
+        check(node.widgets[2].value === '', `${nodeName} clears direct key in reverse direction`);
+        node.onConfigure({savedProvider:'typesafe',savedKey:'dummy-saved-direct'});
+        check(node.widgets[2].value === 'dummy-saved-direct', `${nodeName} restores a saved provider/key together`);
+        node.widgets[0].value = 'jev-preview'; node.onConfigure({});
+        check(node.widgets[0].value === 'jev-preview', `${nodeName} workflow restore preserves model`);
+        node.widgets[1].value = 'openrouter'; node.widgets[1].callback('openrouter');
+        check(node.widgets[2].value === '', `${nodeName} restored key is cleared on a later user switch`);
+        node.widgets[1].value = 'typesafe'; node.widgets[1].callback('typesafe');
+        check(node.widgets[2].value === '', `${nodeName} old keys are not cached when switching back`);
+    }
     return passed;
 }

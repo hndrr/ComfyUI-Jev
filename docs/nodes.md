@@ -4,6 +4,8 @@
 
 Inputs, outputs, and advanced settings for each node. For API key setup, see the [README](../README.md#api-key-setup).
 
+**Jev Find Box** and **Jev Box Region** are documented in the [Box guide](box.md), including their inputs, outputs, coordinates, and missing-target behavior.
+
 ## Jev Interpret
 
 Put the text or situation to evaluate in `state`, and the judgment instructions in `instructions`. The `choice`, `multi_choice`, `score`, and `suggest` tasks accept candidates in either of these ways:

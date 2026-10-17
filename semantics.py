@@ -72,6 +72,47 @@ def _probability(value, label):
     return value
 
 
+def validate_box(box):
+    if not isinstance(box, dict) or set(box) != {"left", "top", "right", "bottom"}:
+        raise ValueError("Box must contain left, top, right, and bottom edges")
+    for edge, value in box.items():
+        _probability(value, f"Box {edge}")
+    if box["left"] >= box["right"] or box["top"] >= box["bottom"]:
+        raise ValueError("Box edges must have positive width and height")
+    return dict(box)
+
+
+def box_questions(target):
+    if not isinstance(target, str) or not target.strip():
+        raise ValueError("Describe one target to locate in the image")
+    return {
+        "target": {"type": "box", "instructions": f"{target.strip()} in the supplied image"},
+        "present": {"type": "noul", "instructions": {
+            "target": target.strip(),
+            "question": "Is this target visible in the supplied image? Answer no if it is absent.",
+        }},
+    }
+
+
+def collect_box(response, presence_threshold=0.8, min_confidence=0.5):
+    """Presence and localization confidence are separate gates, not accuracy guarantees."""
+    _probability(presence_threshold, "presence_threshold")
+    _probability(min_confidence, "min_confidence")
+    if not isinstance(response, dict):
+        raise ValueError("Jev response must be an object")
+    answers = response.get("answers")
+    answer = _answer(answers, "target", "box", "target")
+    presence = _answer(answers, "present", "noul", "target")["noul"]
+    reason = "not_found" if presence < presence_threshold else "low_confidence" if answer["confidence"] < min_confidence else None
+    return {
+        "found": reason is None, "reason": reason,
+        "box": validate_box(answer["box"]) if reason is None else None,
+        "raw_box": validate_box(answer["box"]), "confidence": answer["confidence"],
+        "presence_probability": presence, "presence_threshold": presence_threshold,
+        "min_confidence": min_confidence,
+    }
+
+
 def validate_schema(schema):
     if not isinstance(schema, dict):
         raise ValueError("Schema must be an object keyed by field ID")
@@ -181,6 +222,9 @@ def _answer(answers, qid, kind, field_id, criteria=None):
         raise ValueError(f"{field_id}: missing or wrong-type answer for {qid}")
     if kind == "noul":
         _probability(answer.get("noul"), f"{field_id} probability")
+    elif kind == "box":
+        _probability(answer.get("confidence"), f"{field_id} confidence")
+        validate_box(answer.get("box"))
     else:
         _probability(answer.get("confidence"), f"{field_id} confidence")
         probabilities = answer.get("probabilities")
