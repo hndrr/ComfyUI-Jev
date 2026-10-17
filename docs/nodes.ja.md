@@ -4,6 +4,8 @@
 
 各ノードの入力・出力と詳細設定を説明します。APIキーの設定は[README](../README.ja.md#apiキーの設定)を参照してください。
 
+**Jev Find Box**と**Jev Box Region**の接続例は[README](../README.ja.md#画像から被写体を探す)、入力・出力・座標・対象が見つからない場合の詳細は[Boxガイド（英語）](box.md)を参照してください。
+
 ## Jev Interpret
 
 `state`に判断対象の文章や状況、`instructions`に判断指示を書きます。`choice`・`multi_choice`・`score`・`suggest`の候補は、次のどちらでも渡せます。

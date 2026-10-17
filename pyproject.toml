@@ -1,7 +1,7 @@
 [project]
 name = "comfyui-jev"
-version = "1.0.0"
-description = "Jev text interpretation and judgments for ComfyUI: candidate selection, condition evaluation, scoring, number extraction, and local Skill selection. Includes OpenRouter text generation."
+version = "1.1.0"
+description = "Jev judgments and image localization for ComfyUI: candidate selection, scoring, number extraction, Skill selection, and rectangular crops and masks. Includes OpenRouter text generation."
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.10"

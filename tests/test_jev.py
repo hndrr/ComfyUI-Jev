@@ -249,7 +249,7 @@ class NodeTests(unittest.IsolatedAsyncioTestCase):
             classes = await (await package.comfy_entrypoint()).get_node_list()
             load.assert_awaited_once()
             load_decisions.assert_awaited_once()
-        self.assertEqual(classes, [n.JevInterpret, n.OpenRouterText, n.JevSkillChoice])
+        self.assertEqual(classes, [n.JevInterpret, n.OpenRouterText, n.JevSkillChoice, n.JevFindBox, n.JevBoxRegion])
         n.JevInterpret.INPUT_TYPES()
         self.assertEqual(n.JevInterpret.RETURN_TYPES, ["STRING", "DICT", "STRING"])
         n.OpenRouterText.INPUT_TYPES()

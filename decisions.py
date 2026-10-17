@@ -16,6 +16,8 @@ MODELS = {
 }
 
 CLEF_REQUEST_BUDGET = 256 * 1024
+# Box support is not implied by image support in the model catalog.
+BOX_MODELS = ("typesafe/jev-1.14", "~typesafe/jev-latest")
 
 
 def encode_payload(body):
@@ -58,6 +60,9 @@ def _image(part):
 
 
 def payload(state, questions, model, provider):
+    has_box = any(question.get("type") == "box" for question in questions.values())
+    if has_box and (provider != "openrouter" or model not in BOX_MODELS):
+        raise ValueError("Box requires OpenRouter with typesafe/jev-1.14 or ~typesafe/jev-latest; Jev 1.13 and other Decisions models do not support Box")
     spec = MODELS.get(model)
     if spec and provider != "openrouter":
         raise ValueError(f"{model} requires provider=openrouter")
@@ -83,6 +88,8 @@ def payload(state, questions, model, provider):
             state = items  # Images are DIRECT state items; text items are plain strings.
         else:
             state = "\n".join(items)
+    if has_box and not image_parts:
+        raise ValueError("Box requires an image; connect images to Jev Find Box")
     result = {"model": model, "state": state, "questions": questions}
     if spec:
         if len(questions) > spec["questions"]:

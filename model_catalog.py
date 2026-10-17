@@ -19,6 +19,10 @@ BUILTIN_DECISIONS.update({
     model: {"input_modalities": ["text"], "output_modalities": ["decisions"]}
     for model in ("~typesafe/jev-latest", "typesafe/jev-1.13")
 })
+BUILTIN_DECISIONS.update({
+    model: {"input_modalities": ["text", "image"], "output_modalities": ["decisions"]}
+    for model in decisions.BOX_MODELS
+})
 decision_models = dict(BUILTIN_DECISIONS)
 decision_model_ids = tuple(sorted(decision_models))
 

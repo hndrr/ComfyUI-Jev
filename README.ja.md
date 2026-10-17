@@ -11,8 +11,16 @@ Jevによる文章の解釈・判定をComfyUIで使うためのカスタムノ�
 | **Jev Interpret** | 文章の選択・判定・採点・数値の抽出 |
 | **Jev Skill Choice** | ローカルのSkill（`SKILL.md`）から依頼に合うものを選択 |
 | **OpenRouter Text** | OpenRouterで文章や選択候補を生成 |
+| **Jev Find Box** | 指定した画像内の被写体を、存在確認付きで探す |
+| **Jev Box Region** | 切り抜き・矩形マスク・枠付きプレビューをローカルで作成 |
 
 [インストール](#インストール) · [APIキーの設定](#apiキーの設定) · [まず試す](#まず試す) · [サンプル](#サンプルワークフロー) · [ノードの詳細](docs/nodes.ja.md) · [リリース履歴](https://github.com/hndrr/ComfyUI-Jev/releases)
+
+## 画像から被写体を探す
+
+**Load Image → Jev Find Box → Jev Box Region** と接続し、Load Imageの出力をBox Regionの`images`にも接続します。`target`に「流し台に一番近いマグカップ」など、1つに特定できる対象を記述してください。Find BoxはOpenRouter上のJev 1.14を使い、`OPENROUTER_API_KEY`が必要です。切り抜き、元画像サイズの矩形マスク、枠付きプレビューを出力できます。これは実験的な機能で、被写体の輪郭を抽出するセグメンテーションではありません。
+
+[サンプル](examples/05_find_box.workflow.json)を読み込み、画像を選択して実行できます。存在判定または信頼度が設定値を下回ると`found=false`となり、既定では切り抜きを停止します。`image_index`でバッチ内の1枚だけを選び、`padding`はAPIを再実行せずに調整できます。[使い方・座標・制限の詳細（英語）](docs/box.md)も参照してください。
 
 ## インストール
 
@@ -78,6 +86,8 @@ export OPENROUTER_API_KEY="your-openrouter-key"
 ```
 
 PowerShellでは`$env:OPENROUTER_API_KEY="your-openrouter-key"`です。
+
+Stability Matrixから起動する場合は、Stability Matrixの環境変数に`OPENROUTER_API_KEY`を設定してください。そこで設定したキーはComfyUIの起動時に渡され、別に開いた端末の環境には存在しない場合があります。
 
 Jevの判定にもOpenRouterを使う場合は、Jev InterpretまたはJev Skill Choiceの`provider`を`openrouter`へ変更します。`api_key`が空欄なら`OPENROUTER_API_KEY`を読みます。直接入力する場合も、選択したproviderのキーを使ってください。
 
