@@ -132,6 +132,8 @@ The bundled workflows demonstrate ways to use judgment results, such as choosing
 
 For the three image generation examples, replace `YOUR_SD_OR_SDXL_CHECKPOINT.safetensors` in Checkpoint Loader with an installed SD 1.5 / SDXL checkpoint that includes CLIP and VAE. Adjust image size, seed, and steps in the standard nodes.
 
+[Decisions input limits and error guidance](docs/input-limits.md)
+
 ## Troubleshooting
 
 | Symptom | What to check |

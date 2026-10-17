@@ -169,6 +169,21 @@ def generated_text(response, candidate_count=0):
     return dumps(candidates)
 
 
+def error_hint(status, body=""):
+    """Classify known error codes without echoing provider text or request data."""
+    text = body[:65536].lower() if isinstance(body, str) else ""
+    if any(code in text for code in ("max_tokens_exceeded", "context_length_exceeded", "context_window_exceeded")):
+        return "Model context limit exceeded; shorten state/skill contents or reduce questions and image batch/reference count. Image tokens also consume context."
+    if status == 413:
+        return "Request or image size limit exceeded; resize/recompress images, reduce batch/reference count, or shorten text/questions. Processed images and repeated references can exceed the upload size."
+    return {401: "Invalid API key", 402: "Insufficient credits",
+            400: "Invalid request; check the selected model's image format/dimensions and question limits",
+            404: "Model or endpoint not found; check model ID",
+            415: "Unsupported media/encoding; use a supported still image format",
+            422: "Rejected inputs; check image format/size, batch count, and the model's Choice/Score limits",
+            429: "Rate limit exceeded", 529: "Provider temporarily overloaded"}.get(status, "Request failed")
+
+
 async def _post_json(endpoint, payload, key_name, api_key, label, provider):
     api_key = api_key.strip() or os.environ.get(key_name, "").strip()
     if not api_key:
@@ -187,12 +202,10 @@ async def _post_json(endpoint, payload, key_name, api_key, label, provider):
                         delay = retry_delay(response.headers.get("Retry-After"), attempt)
                         await response.read()
                     elif response.status != 200:
-                        messages = {401: f"Invalid API key for {provider}", 402: "Insufficient credits",
-                                    400: "Invalid request; check inputs and model support",
-                                    404: "Model or endpoint not found; check model ID",
-                                    422: "Rejected inputs; check model support and API limits",
-                                    429: "Rate limit exceeded", 529: "Provider temporarily overloaded"}
-                        raise RuntimeError(f"{label} HTTP {response.status} ({provider}): {messages.get(response.status, 'Request failed')}")
+                        # Error bodies may contain echoed prompts, images, or keys.
+                        # Use only fixed hints, including when the body is not JSON.
+                        body = await response.text()
+                        raise RuntimeError(f"{label} HTTP {response.status} ({provider}): {error_hint(response.status, body)}")
                     else:
                         result = loads(await response.text(), f"{label} response")
                         if not isinstance(result, dict):

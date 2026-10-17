@@ -228,6 +228,7 @@ class TransportTests(unittest.IsolatedAsyncioTestCase):
         for status in (401, 422, 500, 429):
             session = MagicMock()
             response = MagicMock(status=status, headers={})
+            response.text = AsyncMock(return_value="{}")
             response.__aenter__ = AsyncMock(return_value=response)
             response.__aexit__ = AsyncMock(return_value=False)
             response.read = AsyncMock()
