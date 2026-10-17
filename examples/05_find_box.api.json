@@ -1,0 +1,84 @@
+{
+  "1": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "YOUR_IMAGE.png"
+    }
+  },
+  "2": {
+    "class_type": "JevFindBox",
+    "inputs": {
+      "images": [
+        "1",
+        0
+      ],
+      "target": "the mug nearest the sink",
+      "image_index": 0,
+      "model": "typesafe/jev-1.14",
+      "api_key": "",
+      "refresh": 0,
+      "presence_threshold": 0.8,
+      "min_confidence": 0.5
+    }
+  },
+  "3": {
+    "class_type": "JevBoxRegion",
+    "inputs": {
+      "images": [
+        "1",
+        0
+      ],
+      "box_data": [
+        "2",
+        0
+      ],
+      "padding": 16,
+      "on_missing": "error"
+    }
+  },
+  "4": {
+    "class_type": "PreviewImage",
+    "inputs": {
+      "images": [
+        "3",
+        0
+      ]
+    }
+  },
+  "5": {
+    "class_type": "PreviewImage",
+    "inputs": {
+      "images": [
+        "3",
+        2
+      ]
+    }
+  },
+  "6": {
+    "class_type": "MaskToImage",
+    "inputs": {
+      "mask": [
+        "3",
+        1
+      ]
+    }
+  },
+  "7": {
+    "class_type": "PreviewImage",
+    "inputs": {
+      "images": [
+        "6",
+        0
+      ]
+    }
+  },
+  "8": {
+    "class_type": "PreviewAny",
+    "inputs": {
+      "source": [
+        "3",
+        3
+      ]
+    }
+  }
+}

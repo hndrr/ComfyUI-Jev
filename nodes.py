@@ -1,7 +1,7 @@
 from comfy_api.latest import ComfyExtension, io
 import folder_paths
 
-from . import api, decisions, media, model_catalog, semantics as s, skills, suggestions
+from . import api, boxes, decisions, media, model_catalog, semantics as s, skills, suggestions
 
 
 def jev_connection_inputs():
@@ -195,7 +195,71 @@ class OpenRouterText(io.ComfyNode):
         return io.NodeOutput(api.generated_text(response, count), s.dumps(response))
 
 
-NODE_CLASSES = [JevInterpret, OpenRouterText, JevSkillChoice]
+class JevFindBox(io.ComfyNode):
+    @classmethod
+    def define_schema(cls):
+        return io.Schema(
+            node_id="JevFindBox", display_name="Jev Find Box", category="Jev",
+            description="Find one described target in a selected image with Jev 1.14 on OpenRouter. Always checks presence in the same request. Experimental bounding rectangle, not segmentation.",
+            inputs=[
+                io.Image.Input("images"),
+                io.String.Input("target", multiline=True, default="the mug nearest the sink",
+                                tooltip="Describe one distinguishable target. One rectangle is returned; this does not detect every instance."),
+                io.Int.Input("image_index", default=0, min=0, tooltip="Zero-based frame in an IMAGE batch. Only this frame is uploaded and processed."),
+                io.Combo.Input("model", options=list(decisions.BOX_MODELS), default=decisions.BOX_MODELS[0]),
+                io.String.Input("api_key", default="", tooltip="Uses OPENROUTER_API_KEY when empty. Entered keys are saved in workflows; remove before sharing."),
+                io.Int.Input("refresh", default=0, min=0, control_after_generate=io.ControlAfterGenerate.fixed),
+                io.Float.Input("presence_threshold", default=0.8, min=0, max=1, step=0.01, optional=True, advanced=True,
+                               tooltip="Minimum Noul yes probability. An adjustable starting point, not a validated accuracy guarantee."),
+                io.Float.Input("min_confidence", default=0.5, min=0, max=1, step=0.01, optional=True, advanced=True,
+                               tooltip="Minimum Box confidence, in addition to presence. Tune on your images and inspect the preview."),
+            ],
+            outputs=[io.Dict.Output(display_name="box_data"), io.Boolean.Output(display_name="found"),
+                     io.Float.Output(display_name="confidence")],
+        )
+
+    @classmethod
+    async def execute(cls, images, target, image_index=0, model=decisions.BOX_MODELS[0], api_key="", refresh=0,
+                      presence_threshold=0.8, min_confidence=0.5):
+        if model not in decisions.BOX_MODELS:
+            raise ValueError("Select a supported Jev 1.14 Box model")
+        questions = s.box_questions(target)
+        s._probability(presence_threshold, "presence_threshold")
+        s._probability(min_confidence, "min_confidence")
+        frame = boxes.selected_image(images, image_index)
+        source_hash = boxes.image_fingerprint(frame)
+        context, upload_size = boxes.context(frame)
+        response = await api.evaluate(context, questions, model, provider="openrouter", api_key=api_key)
+        result = s.collect_box(response, presence_threshold, min_confidence)
+        result.update({"image_index": image_index, "batch_size": images.shape[0],
+                       "source_hash": source_hash,
+                       "width": images.shape[2], "height": images.shape[1], "upload_size": upload_size,
+                       "target": target, "model": response.get("model"), "usage": response.get("usage", {})})
+        return io.NodeOutput(result, result["found"], result["confidence"])
+
+
+class JevBoxRegion(io.ComfyNode):
+    @classmethod
+    def define_schema(cls):
+        return io.Schema(
+            node_id="JevBoxRegion", display_name="Jev Box Region", category="Jev",
+            description="Create a crop, full-resolution rectangular mask, and separate outline preview locally. Connect the same images as Jev Find Box. Padding changes reuse the API result.",
+            inputs=[
+                io.Image.Input("images"), io.Dict.Input("box_data"),
+                io.Int.Input("padding", default=0, min=0, tooltip="Original-image pixels added on each side, clipped to the image."),
+                io.Combo.Input("on_missing", options=["error", "keep_image"], default="error",
+                               tooltip="error stops before cropping a rejected result. keep_image explicitly returns the selected image, empty mask, and found=false in details."),
+            ],
+            outputs=[io.Image.Output(display_name="crop"), io.Mask.Output(display_name="mask"),
+                     io.Image.Output(display_name="preview"), io.Dict.Output(display_name="details")],
+        )
+
+    @classmethod
+    def execute(cls, images, box_data, padding=0, on_missing="error"):
+        return io.NodeOutput(*boxes.region(images, box_data, padding, on_missing))
+
+
+NODE_CLASSES = [JevInterpret, OpenRouterText, JevSkillChoice, JevFindBox, JevBoxRegion]
 
 
 class JevExtension(ComfyExtension):
