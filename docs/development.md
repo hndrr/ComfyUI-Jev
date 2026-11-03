@@ -24,6 +24,14 @@ python3 -m unittest discover -s .github/tests -v
 
 Each example in `examples/` has a `.workflow.json` for the UI and a matching `.api.json`. Update both when changing inputs or connections. Preserve node IDs and compatibility with existing workflows.
 
+## Security checks
+
+GitHub's [security settings](https://github.com/hndrr/ComfyUI-Jev/settings/security_analysis) manage CodeQL default setup, Dependabot alerts and security updates, secret scanning, and push protection. CodeQL analyzes Python, JavaScript, and GitHub Actions with the extended query suite and local sources enabled. Scans run on pushes and pull requests to the default or protected branches and weekly; default setup excludes pull requests from forks. See [GitHub's trigger details](https://docs.github.com/en/code-security/concepts/code-scanning/setup-types).
+
+[Dependabot](../.github/dependabot.yml) checks Python dependencies in `pyproject.toml` and GitHub Actions every Monday at 09:00 Asia/Tokyo. Routine Actions updates are grouped; security updates are grouped separately for each ecosystem and run independently of that weekly schedule. Review and merge the generated PRs to apply fixes.
+
+Review findings in the repository's [Security tab](https://github.com/hndrr/ComfyUI-Jev/security). Secret scanning checks for supported secret patterns, and push protection blocks supported secrets before they enter the repository. Store API keys in environment variables or Actions secrets.
+
 ## Publishing to Comfy Registry
 
 [`pyproject.toml`](../pyproject.toml) defines Registry ID `comfyui-jev`, display name `ComfyUI-Jev`, and publisher `hndr`. The release version is maintained in `[project].version`.
