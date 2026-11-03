@@ -24,6 +24,14 @@ python3 -m unittest discover -s .github/tests -v
 
 `examples/`にはUIから読み込む`.workflow.json`と、同じ処理の`.api.json`を置いています。入力や接続を変更する際は両方を更新してください。ノードIDと既存ワークフローの互換性を保ちます。
 
+## セキュリティチェック
+
+GitHubの[セキュリティ設定](https://github.com/hndrr/ComfyUI-Jev/settings/security_analysis)で、CodeQLのdefault setup、Dependabotのアラートとセキュリティ更新、secret scanning、push protectionを管理します。CodeQLはPython・JavaScript・GitHub Actionsを対象とし、extendedクエリとローカル入力の解析を有効にします。デフォルトまたは保護ブランチへのpush・PRと週次で検査します。default setupではforkからのPRは対象外です。詳しくは[GitHubの起動条件](https://docs.github.com/en/code-security/concepts/code-scanning/setup-types)を参照してください。
+
+[Dependabot](../.github/dependabot.yml)は`pyproject.toml`のPython依存とGitHub Actionsを、毎週月曜09:00（日本時間）に確認します。通常のActions更新はまとめてPRを作り、セキュリティ更新は週次設定とは独立して、エコシステムごとに別のPRへまとめます。修正を適用するには生成されたPRを確認してマージしてください。
+
+検出結果はリポジトリの[Securityタブ](https://github.com/hndrr/ComfyUI-Jev/security)で確認します。secret scanningは対応する形式のシークレットを検出し、push protectionは対応するシークレットの混入をpush時に防ぎます。APIキーは環境変数かActions secretsで管理してください。
+
 ## Comfy Registryへの公開
 
 [`pyproject.toml`](../pyproject.toml)でRegistry ID `comfyui-jev`、表示名`ComfyUI-Jev`、Publisher ID `hndr`を指定しています。公開するバージョンは`[project].version`で管理します。
