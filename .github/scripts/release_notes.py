@@ -189,7 +189,7 @@ def main():
     arguments = parser.parse_args()
     config = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
     repository = os.environ["GITHUB_REPOSITORY"]
-    github = API(os.environ.get("GITHUB_API_URL", "https://api.github.com"), os.environ["GH_TOKEN"])
+    github = API("https://api.github.com", os.environ["GH_TOKEN"])
     if arguments.mode == "prepare":
         version = config["project"]["version"]
         sha = git("rev-parse", "HEAD")

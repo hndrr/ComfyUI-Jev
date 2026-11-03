@@ -2,6 +2,7 @@ import contextlib
 import importlib.util
 import io
 import json
+import os
 from pathlib import Path
 import tempfile
 import unittest
@@ -290,6 +291,23 @@ class ReleaseNotesTests(unittest.TestCase):
                 self.assertNotIn("secret-token", str(caught.exception))
         with patch.object(notes, "urlopen", side_effect=HTTPError("url", 404, "missing", {}, None)):
             self.assertIsNone(api("GET", "/test", missing_ok=True))
+
+    def test_prepare_cannot_send_github_token_to_an_environment_url(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "output"
+            environment = {"GITHUB_REPOSITORY": REPO, "GH_TOKEN": "secret-token",
+                           "GITHUB_API_URL": "http://127.0.0.1:8080", "GITHUB_OUTPUT": str(output)}
+            response = io.BytesIO(b'{"body": "Release notes"}')
+            with patch.dict(os.environ, environment), patch("sys.argv", ["release_notes.py", "prepare"]), \
+                    patch.object(notes, "git", return_value=SHA), \
+                    patch.object(notes, "release_body", side_effect=lambda github, *args: github("GET", "/test")["body"]), \
+                    patch.object(notes, "urlopen", return_value=response) as transport:
+                notes.main()
+            request = transport.call_args.args[0]
+            self.assertEqual(request.full_url, "https://api.github.com/test")
+            self.assertEqual(request.get_header("Authorization"), "Bearer secret-token")
+            self.assertIn("Release notes", output.read_text())
+            self.assertNotIn("secret-token", output.read_text())
 
     def test_multiline_output_preserves_note_text(self):
         with tempfile.TemporaryDirectory() as directory:
