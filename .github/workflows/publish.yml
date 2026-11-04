@@ -51,7 +51,7 @@ jobs:
                   fetch-depth: 0
                   persist-credentials: false
             - name: Set up Python for version update
-              uses: actions/setup-python@v5
+              uses: actions/setup-python@v7
               with:
                   python-version: '3.12'
             - name: Check Registry token
@@ -152,7 +152,7 @@ jobs:
                   ref: ${{ needs.prepare-release.outputs.release_sha }}
                   persist-credentials: false
             - name: Set up Python
-              uses: actions/setup-python@v5
+              uses: actions/setup-python@v7
               with:
                   python-version: '3.12'
             - name: Create release with shared notes
@@ -178,7 +178,7 @@ jobs:
                   fetch-depth: 0
                   persist-credentials: false
             - name: Set up Python
-              uses: actions/setup-python@v5
+              uses: actions/setup-python@v7
               with:
                   python-version: '3.12'
             - name: Run release automation tests
