@@ -1,7 +1,7 @@
 from comfy_api.latest import ComfyExtension, io
 import folder_paths
 
-from . import api, decisions, media, model_catalog, semantics as s, skills, suggestions
+from . import api, boxes, decisions, media, model_catalog, reference, semantics as s, skills, suggestions
 
 
 def jev_connection_inputs():
@@ -32,7 +32,7 @@ def candidate_inputs():
 
 def context_inputs():
     return [
-        io.Image.Input("images", optional=True, tooltip="Entire IMAGE batch, in order. Requires image input support in the Decisions catalog. Known limits: Luna 128, Clef 4. Resize/select frames with existing nodes."),
+        io.Image.Input("images", optional=True, tooltip="Entire IMAGE batch, in order. TypeSafe: still PNG/JPEG, 280–1568 pixels per side. OpenRouter requires an image-capable Decisions model. Known limits: Luna 128, Clef 4."),
         io.String.Input("content_json", force_input=True, optional=True,
                         tooltip="JSON array of text and image_url parts. Images must be PNG/JPEG/WebP data URLs. Order: state/prompt, content_json, IMAGE batch."),
     ]
@@ -195,7 +195,121 @@ class OpenRouterText(io.ComfyNode):
         return io.NodeOutput(api.generated_text(response, count), s.dumps(response))
 
 
-NODE_CLASSES = [JevInterpret, OpenRouterText, JevSkillChoice]
+class JevFindBox(io.ComfyNode):
+    @classmethod
+    def define_schema(cls):
+        return io.Schema(
+            node_id="JevFindBox", display_name="Jev Find Box", category="Jev",
+            description="Find one described target in a selected image with Jev 1.14 through TypeSafe or OpenRouter. Always checks presence in the same request. Experimental bounding rectangle, not segmentation.",
+            inputs=[
+                io.Image.Input("images"),
+                io.String.Input("target", multiline=True, default="the mug nearest the sink",
+                                tooltip="Describe one distinguishable target. One rectangle is returned; this does not detect every instance."),
+                io.Int.Input("image_index", default=0, min=0, tooltip="Zero-based frame in an IMAGE batch. Only this frame is uploaded and processed."),
+                io.Combo.Input("model", options=[*decisions.BOX_MODELS, *decisions.TYPESAFE_BOX_MODELS], default=decisions.BOX_MODELS[0],
+                               extra_dict={"jev_provider_models": {"openrouter": list(decisions.BOX_MODELS), "typesafe": list(decisions.TYPESAFE_BOX_MODELS)}}),
+                io.String.Input("api_key", default="", tooltip="Empty uses TYPESAFE_API_KEY or OPENROUTER_API_KEY for the selected provider. Entered keys are saved in workflows; remove before sharing."),
+                io.Int.Input("refresh", default=0, min=0, control_after_generate=io.ControlAfterGenerate.fixed),
+                io.Float.Input("presence_threshold", default=0.8, min=0, max=1, step=0.01, optional=True, advanced=True,
+                               tooltip="Minimum Noul yes probability. An adjustable starting point, not a validated accuracy guarantee."),
+                io.Float.Input("min_confidence", default=0.5, min=0, max=1, step=0.01, optional=True, advanced=True,
+                               tooltip="Minimum Box confidence, in addition to presence. Tune on your images and inspect the preview."),
+                io.Combo.Input("provider", options=["openrouter", "typesafe"], default="openrouter", optional=True,
+                               tooltip="OpenRouter remains the default for saved workflows. TypeSafe direct requires its own TYPESAFE_API_KEY."),
+            ],
+            outputs=[io.Dict.Output(display_name="box_data"), io.Boolean.Output(display_name="found"),
+                     io.Float.Output(display_name="confidence")],
+        )
+
+    @classmethod
+    async def execute(cls, images, target, image_index=0, model=decisions.BOX_MODELS[0], api_key="", refresh=0,
+                      presence_threshold=0.8, min_confidence=0.5, provider="openrouter"):
+        if provider not in ("openrouter", "typesafe"):
+            raise ValueError("Select provider openrouter or typesafe")
+        supported = decisions.TYPESAFE_BOX_MODELS if provider == "typesafe" else decisions.BOX_MODELS
+        if model not in supported:
+            raise ValueError("Select a supported Jev 1.14 Box model for the chosen provider")
+        questions = s.box_questions(target)
+        s._probability(presence_threshold, "presence_threshold")
+        s._probability(min_confidence, "min_confidence")
+        frame = boxes.selected_image(images, image_index)
+        source_hash = boxes.image_fingerprint(frame)
+        context, upload_size = boxes.context(frame, provider)
+        response = await api.evaluate(context, questions, model, provider=provider, api_key=api_key)
+        result = s.collect_box(response, presence_threshold, min_confidence)
+        result.update({"image_index": image_index, "batch_size": images.shape[0],
+                       "source_hash": source_hash,
+                       "width": images.shape[2], "height": images.shape[1], "upload_size": upload_size,
+                       "target": target, "model": response.get("model"), "usage": response.get("usage", {})})
+        result["provider"] = provider
+        return io.NodeOutput(result, result["found"], result["confidence"])
+
+
+class JevBoxRegion(io.ComfyNode):
+    @classmethod
+    def define_schema(cls):
+        return io.Schema(
+            node_id="JevBoxRegion", display_name="Jev Box Region", category="Jev",
+            description="Create a crop, full-resolution rectangular mask, and separate outline preview locally. Connect the same images as Jev Find Box. Padding changes reuse the API result.",
+            inputs=[
+                io.Image.Input("images"), io.Dict.Input("box_data"),
+                io.Int.Input("padding", default=0, min=0, tooltip="Original-image pixels added on each side, clipped to the image."),
+                io.Combo.Input("on_missing", options=["error", "keep_image"], default="error",
+                               tooltip="error stops before cropping a rejected result. keep_image explicitly returns the selected image, empty mask, and found=false in details."),
+            ],
+            outputs=[io.Image.Output(display_name="crop"), io.Mask.Output(display_name="mask"),
+                     io.Image.Output(display_name="preview"), io.Dict.Output(display_name="details")],
+        )
+
+    @classmethod
+    def execute(cls, images, box_data, padding=0, on_missing="error"):
+        return io.NodeOutput(*boxes.region(images, box_data, padding, on_missing))
+
+
+class JevReferenceEvaluate(io.ComfyNode):
+    @classmethod
+    def define_schema(cls):
+        choices = reference.model_choices()
+        return io.Schema(
+            node_id="JevReferenceEvaluate", display_name="Jev Reference Evaluate", category="Jev",
+            description="Evaluate one selected image against one separately selected reference. Jev only. The evaluation image is state; the reference is in the question/rubric. No batch pairing or image generation.",
+            inputs=[
+                io.Image.Input("images", tooltip="Image batch to evaluate. Only image_index is sent."),
+                io.Image.Input("reference_images", tooltip="Separate reference batch. Only reference_index is sent; it is never implicitly paired with the target batch."),
+                io.String.Input("instructions", multiline=True, default="Does the evaluation image show the same product as the reference? Ignore background changes."),
+                io.Combo.Input("task", options=["match", "score"], default="match",
+                               tooltip="match returns Noul match probability. score returns a normalized 3-level rubric score, with separate confidence in details."),
+                io.Int.Input("image_index", default=0, min=0),
+                io.Int.Input("reference_index", default=0, min=0),
+                io.Combo.Input("model", options=[*choices["openrouter"], *choices["typesafe"]], default="typesafe/jev-1.14",
+                               extra_dict={"jev_provider_models": choices}),
+                io.String.Input("api_key", default="", tooltip="Empty uses the selected provider's environment key. Keys entered here are saved with workflows."),
+                io.Int.Input("refresh", default=0, min=0, control_after_generate=io.ControlAfterGenerate.fixed),
+                io.Combo.Input("provider", options=["openrouter", "typesafe"], default="openrouter"),
+                io.Combo.Input("reference_placement", options=["instructions", "criteria"], default="instructions", optional=True, advanced=True,
+                               tooltip="instructions: the reference illustrates the task. criteria: the reference illustrates the positive/highest rubric level."),
+                io.Float.Input("threshold", default=0.8, min=0, max=1, step=0.01, optional=True, advanced=True),
+                io.Float.Input("min_confidence", default=0.5, min=0, max=1, step=0.01, optional=True, advanced=True,
+                               tooltip="Score task only. Noul has no separate confidence; its match probability is the value."),
+            ], outputs=[io.Float.Output(display_name="value"), io.Boolean.Output(display_name="accepted"),
+                        io.Dict.Output(display_name="details"), io.String.Output(display_name="response_json")],
+        )
+
+    @classmethod
+    async def execute(cls, images, reference_images, instructions, task="match", image_index=0, reference_index=0,
+                      model="typesafe/jev-1.14", api_key="", refresh=0, provider="openrouter",
+                      reference_placement="instructions", threshold=0.8, min_confidence=0.5):
+        s._probability(threshold, "threshold")
+        s._probability(min_confidence, "min_confidence")
+        state, questions, metadata = reference.prepare(images, reference_images, instructions, task,
+            image_index, reference_index, reference_placement, model, provider)
+        response = await api.evaluate(state, questions, model, provider=provider, api_key=api_key)
+        value, accepted, details = reference.collect(response, questions["evaluation"], task, threshold,
+            min_confidence, metadata, reference_placement, provider)
+        return io.NodeOutput(value, accepted, details, s.dumps(response))
+
+
+NODE_CLASSES = [JevInterpret, OpenRouterText, JevSkillChoice, JevFindBox, JevBoxRegion, JevReferenceEvaluate]
 
 
 class JevExtension(ComfyExtension):

@@ -228,6 +228,8 @@ class TransportTests(unittest.IsolatedAsyncioTestCase):
         for status in (401, 422, 500, 429):
             session = MagicMock()
             response = MagicMock(status=status, headers={})
+            response.text = AsyncMock(return_value="{}")
+            response.content.read = AsyncMock(return_value=b"{}")
             response.__aenter__ = AsyncMock(return_value=response)
             response.__aexit__ = AsyncMock(return_value=False)
             response.read = AsyncMock()
@@ -249,7 +251,7 @@ class NodeTests(unittest.IsolatedAsyncioTestCase):
             classes = await (await package.comfy_entrypoint()).get_node_list()
             load.assert_awaited_once()
             load_decisions.assert_awaited_once()
-        self.assertEqual(classes, [n.JevInterpret, n.OpenRouterText, n.JevSkillChoice])
+        self.assertEqual(classes, [n.JevInterpret, n.OpenRouterText, n.JevSkillChoice, n.JevFindBox, n.JevBoxRegion, n.JevReferenceEvaluate])
         n.JevInterpret.INPUT_TYPES()
         self.assertEqual(n.JevInterpret.RETURN_TYPES, ["STRING", "DICT", "STRING"])
         n.OpenRouterText.INPUT_TYPES()
