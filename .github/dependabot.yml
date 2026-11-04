@@ -1,4 +1,5 @@
 version: 2
+# Security PR severity is selected by the repository's Dependabot auto-triage rule.
 updates:
   - package-ecosystem: pip
     directory: /
@@ -7,11 +8,7 @@ updates:
       day: monday
       time: '09:00'
       timezone: Asia/Tokyo
-    open-pull-requests-limit: 5
-    groups:
-      python-security:
-        applies-to: security-updates
-        patterns: ['*']
+    open-pull-requests-limit: 0
 
   - package-ecosystem: github-actions
     directory: /
@@ -20,10 +17,4 @@ updates:
       day: monday
       time: '09:00'
       timezone: Asia/Tokyo
-    open-pull-requests-limit: 5
-    groups:
-      github-actions:
-        patterns: ['*']
-      github-actions-security:
-        applies-to: security-updates
-        patterns: ['*']
+    open-pull-requests-limit: 0
