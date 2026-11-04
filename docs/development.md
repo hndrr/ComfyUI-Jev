@@ -28,7 +28,18 @@ Each example in `examples/` has a `.workflow.json` for the UI and a matching `.a
 
 GitHub's [security settings](https://github.com/hndrr/ComfyUI-Jev/settings/security_analysis) manage CodeQL default setup, Dependabot alerts and security updates, secret scanning, and push protection. CodeQL analyzes Python, JavaScript, and GitHub Actions with the extended query suite and local sources enabled. Scans run on pushes and pull requests to the default or protected branches and weekly; default setup excludes pull requests from forks. See [GitHub's trigger details](https://docs.github.com/en/code-security/concepts/code-scanning/setup-types).
 
-[Dependabot](../.github/dependabot.yml) checks Python dependencies in `pyproject.toml` and GitHub Actions every Monday at 09:00 Asia/Tokyo. Routine Actions updates are grouped; security updates are grouped separately for each ecosystem and run independently of that weekly schedule. Review and merge the generated PRs to apply fixes.
+[Dependabot](../.github/dependabot.yml) covers Python dependencies in `pyproject.toml` and GitHub Actions. Routine version-update PRs are disabled with `open-pull-requests-limit: 0`; the required schedule does not enable them. Security fixes are proposed individually and require review before merging.
+
+| Alert | Handling |
+| --- | --- |
+| Critical / High | Automatically request a fix PR when a patch is available, unless GitHub's preset has already dismissed the alert. Check the affected version, vulnerable feature, input exposure, and actual impact before deciding how to respond. |
+| Medium (`moderate`) / Low | Keep the alert visible; do not automatically create a fix PR. |
+| Low-impact development dependencies | Keep GitHub's **Dismiss low-impact alerts for development-scoped dependencies** preset enabled. GitHub currently applies this preset to selected npm development-dependency vulnerabilities; it does not blanket-dismiss Python or Actions alerts. |
+| Apparently unused features | Verify the installed version, dependency scope, configuration, and relevant call paths before deferring or dismissing. Record the evidence and when to reassess; absence of a reachability result alone is not proof that a feature is unused. |
+
+Configure the PR policy in [Dependabot rules](https://github.com/hndrr/ComfyUI-Jev/settings/dependabot_rules), separately from this YAML file. Keep Dependabot alerts enabled, turn off the repository-wide **Dependabot security updates** toggle, and enable the rule **Security PRs for Critical and High** with target `severity:critical severity:high`, only **Open a pull request to resolve alerts** selected, and **Dismiss alerts** unchecked. Repeating `severity:` means OR; do not use a comma-separated value. Keep the low-impact preset enabled and **Dismiss package malware alerts** disabled. These settings follow [GitHub's custom-rule documentation](https://docs.github.com/en/code-security/how-tos/secure-your-supply-chain/manage-your-dependency-security/auto-triage-dependabot-alerts) and the [auto-triage validation article](https://dev.classmethod.jp/articles/dependabot-auto-triage-rules-sandbox-test/).
+
+Do not assume a new PR rule will create fixes for existing alerts: inspect existing Critical / High alerts and use their individual security-update controls if necessary. The severity filter controls Dependabot PR creation; CodeQL and secret scanning continue to report findings independently.
 
 Review findings in the repository's [Security tab](https://github.com/hndrr/ComfyUI-Jev/security). Secret scanning checks for supported secret patterns, and push protection blocks supported secrets before they enter the repository. Store API keys in environment variables or Actions secrets.
 

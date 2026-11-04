@@ -28,7 +28,18 @@ python3 -m unittest discover -s .github/tests -v
 
 GitHubの[セキュリティ設定](https://github.com/hndrr/ComfyUI-Jev/settings/security_analysis)で、CodeQLのdefault setup、Dependabotのアラートとセキュリティ更新、secret scanning、push protectionを管理します。CodeQLはPython・JavaScript・GitHub Actionsを対象とし、extendedクエリとローカル入力の解析を有効にします。デフォルトまたは保護ブランチへのpush・PRと週次で検査します。default setupではforkからのPRは対象外です。詳しくは[GitHubの起動条件](https://docs.github.com/en/code-security/concepts/code-scanning/setup-types)を参照してください。
 
-[Dependabot](../.github/dependabot.yml)は`pyproject.toml`のPython依存とGitHub Actionsを、毎週月曜09:00（日本時間）に確認します。通常のActions更新はまとめてPRを作り、セキュリティ更新は週次設定とは独立して、エコシステムごとに別のPRへまとめます。修正を適用するには生成されたPRを確認してマージしてください。
+[Dependabot](../.github/dependabot.yml)は`pyproject.toml`のPython依存とGitHub Actionsを対象にします。`open-pull-requests-limit: 0`で通常のバージョン更新PRを停止します。必須項目のscheduleを残しても、通常の更新PRは作られません。セキュリティ修正は個別のPRで提案し、内容を確認してからマージします。
+
+| アラート | 対応 |
+| --- | --- |
+| Critical / High | GitHub標準ルールで整理されていないアラートに修正版があれば、自動で修正PRを作成します。対象バージョン、脆弱な機能、入力の入り方、実際の影響を確認して対応を決めます。 |
+| Medium（`moderate`）/ Low | アラートは残し、自動修正PRの対象から除外します。 |
+| 低影響の開発用依存 | GitHub標準の **Dismiss low-impact alerts for development-scoped dependencies** を有効に保ちます。現在の標準ルールは特定のnpm開発依存の脆弱性が対象で、PythonやActionsの警告を一律に閉じるものではありません。 |
+| 未使用と思われる機能 | 導入バージョン、依存の用途、設定、関連する呼出経路を確認してから、保留・Dismissを判断します。根拠と再確認する条件を記録し、到達可能性の解析結果がないことだけで未使用と断定しません。 |
+
+自動PRの条件はYAMLとは別に、[Dependabot rules](https://github.com/hndrr/ComfyUI-Jev/settings/dependabot_rules)で管理します。Dependabot alertsは有効のまま、全件対象の **Dependabot security updates** を無効にし、**Security PRs for Critical and High** ルールを有効にします。対象は`severity:critical severity:high`、アクションは **Open a pull request to resolve alerts** だけを選び、**Dismiss alerts** は選びません。`severity:`の繰り返しはOR条件です。カンマ区切りにはしません。低影響の開発用依存を整理する標準ルールは有効、**Dismiss package malware alerts** は無効を維持します。[GitHubの公式手順](https://docs.github.com/en/code-security/how-tos/secure-your-supply-chain/manage-your-dependency-security/auto-triage-dependabot-alerts)と[auto-triageの検証記事](https://dev.classmethod.jp/articles/dependabot-auto-triage-rules-sandbox-test/)を参考にしています。
+
+ルール作成だけで既存アラートの修正PRも作られるとは想定せず、既存のCritical / Highは個別画面で確認し、必要なら手動で修正PRを生成します。重要度による絞り込みはDependabotのPR作成に適用し、CodeQLとsecret scanningはそれぞれ検出を継続します。
 
 検出結果はリポジトリの[Securityタブ](https://github.com/hndrr/ComfyUI-Jev/security)で確認します。secret scanningは対応する形式のシークレットを検出し、push protectionは対応するシークレットの混入をpush時に防ぎます。APIキーは環境変数かActions secretsで管理してください。
 
