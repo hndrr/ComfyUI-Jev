@@ -1,0 +1,521 @@
+{
+  "id": "e6c33a35-484e-403c-9b51-4119f5f6a3da",
+  "revision": 0,
+  "last_node_id": 8,
+  "last_link_id": 8,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "LoadImage",
+      "pos": [
+        30,
+        70
+      ],
+      "size": [
+        320,
+        300
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "COMBO",
+          "link": null,
+          "widget": {
+            "name": "image"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            1,
+            2
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "YOUR_IMAGE.png"
+      ],
+      "widgets_values_named": {
+        "image": "YOUR_IMAGE.png"
+      }
+    },
+    {
+      "id": 2,
+      "type": "JevFindBox",
+      "pos": [
+        420,
+        70
+      ],
+      "size": [
+        390,
+        400
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 1
+        },
+        {
+          "name": "target",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "target"
+          }
+        },
+        {
+          "name": "image_index",
+          "type": "INT",
+          "link": null,
+          "widget": {
+            "name": "image_index"
+          }
+        },
+        {
+          "name": "model",
+          "type": "COMBO",
+          "link": null,
+          "widget": {
+            "name": "model"
+          }
+        },
+        {
+          "name": "api_key",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "api_key"
+          }
+        },
+        {
+          "name": "refresh",
+          "type": "INT",
+          "link": null,
+          "widget": {
+            "name": "refresh"
+          }
+        },
+        {
+          "name": "presence_threshold",
+          "type": "FLOAT",
+          "link": null,
+          "widget": {
+            "name": "presence_threshold"
+          }
+        },
+        {
+          "name": "min_confidence",
+          "type": "FLOAT",
+          "link": null,
+          "widget": {
+            "name": "min_confidence"
+          }
+        },
+        {
+          "name": "provider",
+          "type": "COMBO",
+          "link": null,
+          "widget": {
+            "name": "provider"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "box_data",
+          "type": "DICT",
+          "links": [
+            3
+          ]
+        },
+        {
+          "name": "found",
+          "type": "BOOLEAN",
+          "links": []
+        },
+        {
+          "name": "confidence",
+          "type": "FLOAT",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "JevFindBox"
+      },
+      "widgets_values": [
+        "the mug nearest the sink",
+        0,
+        "jev-1.14.0",
+        "",
+        0,
+        "fixed",
+        0.8,
+        0.5,
+        "typesafe"
+      ],
+      "widgets_values_named": {
+        "target": "the mug nearest the sink",
+        "image_index": 0,
+        "model": "jev-1.14.0",
+        "api_key": "",
+        "refresh": 0,
+        "control_after_generate": "fixed",
+        "presence_threshold": 0.8,
+        "min_confidence": 0.5,
+        "provider": "typesafe"
+      }
+    },
+    {
+      "id": 3,
+      "type": "JevBoxRegion",
+      "pos": [
+        870,
+        70
+      ],
+      "size": [
+        330,
+        240
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 2
+        },
+        {
+          "name": "box_data",
+          "type": "DICT",
+          "link": 3
+        },
+        {
+          "name": "padding",
+          "type": "INT",
+          "link": null,
+          "widget": {
+            "name": "padding"
+          }
+        },
+        {
+          "name": "on_missing",
+          "type": "COMBO",
+          "link": null,
+          "widget": {
+            "name": "on_missing"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "crop",
+          "type": "IMAGE",
+          "links": [
+            4
+          ]
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "links": [
+            6
+          ]
+        },
+        {
+          "name": "preview",
+          "type": "IMAGE",
+          "links": [
+            5
+          ]
+        },
+        {
+          "name": "details",
+          "type": "DICT",
+          "links": [
+            8
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "JevBoxRegion"
+      },
+      "widgets_values": [
+        16,
+        "error"
+      ],
+      "widgets_values_named": {
+        "padding": 16,
+        "on_missing": "error"
+      }
+    },
+    {
+      "id": 4,
+      "type": "PreviewImage",
+      "pos": [
+        1260,
+        30
+      ],
+      "size": [
+        340,
+        300
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 4
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      },
+      "widgets_values": [],
+      "widgets_values_named": {}
+    },
+    {
+      "id": 5,
+      "type": "PreviewImage",
+      "pos": [
+        1260,
+        390
+      ],
+      "size": [
+        340,
+        300
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 5
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      },
+      "widgets_values": [],
+      "widgets_values_named": {}
+    },
+    {
+      "id": 6,
+      "type": "MaskToImage",
+      "pos": [
+        880,
+        430
+      ],
+      "size": [
+        240,
+        80
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "mask",
+          "type": "MASK",
+          "link": 6
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            7
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MaskToImage"
+      },
+      "widgets_values": [],
+      "widgets_values_named": {}
+    },
+    {
+      "id": 7,
+      "type": "PreviewImage",
+      "pos": [
+        1260,
+        750
+      ],
+      "size": [
+        340,
+        300
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      },
+      "widgets_values": [],
+      "widgets_values_named": {}
+    },
+    {
+      "id": 8,
+      "type": "PreviewAny",
+      "pos": [
+        880,
+        600
+      ],
+      "size": [
+        330,
+        300
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "source",
+          "type": "*",
+          "link": 8
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PreviewAny"
+      },
+      "widgets_values": [],
+      "widgets_values_named": {}
+    }
+  ],
+  "links": [
+    [
+      1,
+      1,
+      0,
+      2,
+      0,
+      "IMAGE"
+    ],
+    [
+      2,
+      1,
+      0,
+      3,
+      0,
+      "IMAGE"
+    ],
+    [
+      3,
+      2,
+      0,
+      3,
+      1,
+      "DICT"
+    ],
+    [
+      4,
+      3,
+      0,
+      4,
+      0,
+      "IMAGE"
+    ],
+    [
+      5,
+      3,
+      2,
+      5,
+      0,
+      "IMAGE"
+    ],
+    [
+      6,
+      3,
+      1,
+      6,
+      0,
+      "MASK"
+    ],
+    [
+      7,
+      6,
+      0,
+      7,
+      0,
+      "IMAGE"
+    ],
+    [
+      8,
+      3,
+      3,
+      8,
+      0,
+      "*"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.7,
+      "offset": [
+        20,
+        20
+      ]
+    }
+  },
+  "version": 0.4
+}
